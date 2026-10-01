@@ -1,0 +1,1677 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#110e09">
+  <meta name="description" content="Uma recriação de River Raid do Atari 2600 para jogar no navegador, com teclado, controle ou toque.">
+  <title>River Raid · Atari 2600</title>
+  <style>
+:root {
+  color-scheme: dark;
+  --room: #100d09;
+  --paper: #eee0c2;
+  --paper-dim: #baaa8b;
+  --amber: #e4ab5c;
+  --amber-light: #f6ce87;
+  --wood: #5b3923;
+  --wood-hi: #794b2c;
+  --wood-dark: #392516;
+  --fire: #c62b20;
+}
+
+* { box-sizing: border-box; }
+html { margin: 0; background: var(--room); }
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 30px 20px 32px;
+  color: var(--paper);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  background: radial-gradient(ellipse at 50% 26%, #2a2010 0, #17120c 36%, var(--room) 72%);
+}
+button { font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button:focus-visible, canvas:focus-visible { outline: 3px solid var(--amber-light); outline-offset: 4px; }
+button:disabled { opacity: .45; cursor: default; }
+button, canvas { touch-action: manipulation; }
+.marquee { max-width: 770px; margin: 0 auto 21px; text-align: center; }
+.eyebrow { margin: 0 0 6px; font-size: 10px; letter-spacing: 3px; color: var(--paper-dim); }
+.marquee h1 { margin: 0; font-weight: 900; font-size: clamp(30px, 6.5vw, 49px); line-height: 1.13; letter-spacing: 6px; color: var(--amber-light); text-shadow: 3px 3px 0 #573718, 0 0 27px #e4ab5c24; }
+.subtitle { margin: 8px 0 0; font-size: 12px; letter-spacing: 1px; color: var(--paper-dim); }
+.stripes { display: flex; width: min(100%, 550px); height: 5px; margin: 17px auto 0; }
+.stripes span { flex: 1; }
+.stripes span:nth-child(1) { background: #be3c30; }
+.stripes span:nth-child(2) { background: #e17a27; }
+.stripes span:nth-child(3) { background: #e8b739; }
+.stripes span:nth-child(4) { background: #55934c; }
+.stripes span:nth-child(5) { background: #4c70a8; }
+.game-room { width: fit-content; max-width: 100%; margin: 0 auto; }
+.tv { width: fit-content; max-width: 100%; margin-inline: auto; padding: 22px 23px 16px; border: 1px solid #3a3023; border-radius: 24px; background: linear-gradient(145deg, #312a20, #181510 40%, #110e0a); box-shadow: 0 22px 65px #0009, 0 0 80px #b48d3610, inset 0 1px 0 #ffffff0e; }
+.crt { position: relative; width: fit-content; overflow: hidden; border: 8px solid #090907; border-radius: 15px; background: #050607; box-shadow: 0 0 0 1px #40382a, 0 5px 10px #000a, inset 0 0 30px #000; }
+#screen { display: block; width: min(72vw, 760px, max(340px, calc((100svh - 410px) * 4 / 3))); max-width: 100%; aspect-ratio: 4 / 3; height: auto; image-rendering: pixelated; image-rendering: crisp-edges; background: #000; cursor: crosshair; touch-action: none; filter: saturate(1.05) contrast(1.03); }
+#screen.bw { filter: grayscale(1) contrast(1.1); }
+.crt::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 8px; background: radial-gradient(ellipse at 30% 10%, #ffffff0b 0, transparent 46%), radial-gradient(ellipse at 50% 45%, transparent 57%, #00000054 100%); }
+.deck { display: flex; align-items: center; gap: 13px; margin-top: 16px; padding: 10px 14px 9px; border-radius: 5px; background: repeating-linear-gradient(92deg, var(--wood) 0, var(--wood-hi) 7px, var(--wood) 14px, var(--wood-dark) 26px, var(--wood) 34px); box-shadow: inset 0 2px 5px #0008, inset 0 -1px 0 #ffffff12; }
+.console-brand { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px; line-height: 1.2; }
+.brand { font-size: 8px; font-weight: bold; letter-spacing: 1px; text-shadow: 1px 1px #000a; white-space: nowrap; }
+.model { font-size: 15px; font-weight: bold; letter-spacing: 4px; color: #c7aa79; }
+.switches { display: flex; gap: 17px; margin-left: auto; }
+.switch { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 4px 2px; border: 0; background: transparent; color: var(--paper); }
+.switch .lever { position: relative; display: block; width: 16px; height: 24px; border-radius: 3px; background: linear-gradient(#090807, #211b15); box-shadow: inset 0 1px 3px #000, 0 1px 0 #ffffff15; }
+.switch .lever::after { content: ""; position: absolute; inset: 2px 3px auto; height: 10px; border-radius: 2px; background: linear-gradient(#e2ddcf, #888173); box-shadow: 0 1px 3px #000b; transition: transform .12s; }
+.switch[aria-pressed="true"] .lever::after, .switch.momentary:active .lever::after { transform: translateY(10px); }
+.switch .label { font-size: 7px; font-weight: bold; line-height: 1.2; letter-spacing: .3px; white-space: nowrap; text-shadow: 1px 1px #0009; }
+.led { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: #ed432b; box-shadow: 0 0 8px #ed432b, 0 0 16px #ed432b44; }
+.game-toolbar { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 19px; }
+.action-button { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 38px; padding: 9px 12px; color: var(--paper-dim); border: 1px solid #51402b; border-radius: 4px; background: #1c1710; font-size: 10px; font-weight: bold; letter-spacing: .6px; box-shadow: inset 0 1px 0 #ffffff08, 0 2px 0 #0005; }
+.action-button span { color: #8f8069; font-size: 9px; }
+.action-button:hover { color: var(--amber-light); border-color: var(--amber); background: #292014; }
+.action-button:active { transform: translateY(1px); }
+.action-button.primary { color: var(--amber-light); background: #342615; border-color: #927048; }
+.action-button[aria-pressed="true"] { color: var(--amber-light); border-color: #a27742; background: #332411; }
+.sound-icon { font-size: 15px !important; line-height: 1; color: inherit !important; }
+.game-status { margin: 11px 0 0; min-height: 20px; color: #aa987b; text-align: center; font-size: 11px; }
+#pad { display: none; justify-content: space-between; align-items: center; width: min(100%, 390px); gap: 20px; margin: 16px auto 8px; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.dpad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 48px); gap: 4px; }
+.dpad button, .dpad-center { border: 1px solid #433422; border-radius: 7px; background: linear-gradient(#292219, #17120d); box-shadow: 0 3px 0 #050403; color: var(--amber); font-size: 16px; touch-action: none; }
+.dpad .up { grid-area: 1 / 2; }
+.dpad .left { grid-area: 2 / 1; }
+.dpad .right { grid-area: 2 / 3; }
+.dpad .down { grid-area: 3 / 2; }
+.dpad-center { grid-area: 2 / 2; background: #1e1810; box-shadow: inset 0 0 8px #0006; }
+#pad button:active, #pad button.held { transform: translateY(2px); box-shadow: 0 1px 0 #050403; background: #352617; }
+.fire-control { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.fire-control > span { font-size: 7px; color: #a28d6e; letter-spacing: .4px; }
+#pad .fire { width: 100px; height: 100px; border: 4px solid #1d1610; border-radius: 50%; color: #ffe4ca; background: radial-gradient(circle at 35% 25%, #e95543, var(--fire) 60%, #84180f); box-shadow: 0 5px 0 #080504, 0 0 20px #c62b2025; font-size: 15px; font-weight: bold; letter-spacing: 2px; touch-action: none; }
+#pad .fire:active, #pad .fire.held { transform: translateY(3px); box-shadow: 0 2px 0 #080504; background: radial-gradient(circle at 35% 25%, #f07357, #cf3426 60%, #84180f); }
+/* Keep the manual from determining the intrinsic width of the television. */
+.manual { margin-top: 24px; width: 0; min-width: 100%; border: 1px solid #3a2c1c; border-radius: 5px; background: linear-gradient(#1a140d, #141008); padding: 18px 20px 0; }
+.manual-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 11px; border-bottom: 1px solid #382b1a; }
+.manual h2 { margin: 0; color: var(--amber); text-transform: uppercase; font-size: 12px; font-weight: bold; letter-spacing: 2px; }
+.manual-edition { color: #79694e; font-size: 9px; letter-spacing: 1px; white-space: nowrap; }
+.manual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; padding: 15px 0 17px; }
+.manual h3 { margin: 0 0 9px; color: #d9c299; font-size: 11px; font-weight: bold; }
+.manual ul { padding: 0; margin: 0; list-style: none; }
+.manual li { margin: 0 0 7px; color: var(--paper-dim); font-size: 11px; }
+.manual li:last-child { margin-bottom: 0; }
+.manual b { color: #e3cda5; font-weight: bold; }
+kbd { display: inline-block; margin: 0 1px; padding: 1px 4px; border: 1px solid #4b3a25; border-radius: 3px; color: #ead6b0; background: #2b2115; font: inherit; font-size: 9px; line-height: 1.4; box-shadow: 0 1px 0 #0a0704; }
+.console-state { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 5px 16px; padding: 11px 0; border-top: 1px solid #382b1a; color: #968261; font-size: 9px; }
+footer { max-width: 760px; margin: 24px auto 0; text-align: center; color: #77694f; font-size: 10px; }
+.tv:fullscreen, .tv:-webkit-full-screen { width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: #080806; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.tv:fullscreen .crt, .tv:-webkit-full-screen .crt { border-width: 0; border-radius: 0; }
+.tv:fullscreen #screen, .tv:-webkit-full-screen #screen { width: min(100vw, calc(100vh * 4 / 3)); }
+.tv:fullscreen .deck, .tv:-webkit-full-screen .deck { display: none; }
+@media (pointer: coarse) { #pad { display: flex; } }
+body.touch #pad { display: flex; }
+@media (max-width: 650px) {
+  body { padding: 23px 14px 27px; }
+  .marquee { margin-bottom: 17px; }
+  .marquee h1 { letter-spacing: 4px; }
+  .eyebrow { font-size: 8px; letter-spacing: 2px; }
+  .subtitle { font-size: 10px; }
+  .tv { padding: 13px 12px 11px; border-radius: 18px; }
+  .crt { border-width: 5px; border-radius: 11px; }
+  #screen { width: calc(100vw - 66px); }
+  .deck { padding: 8px 10px; gap: 9px; margin-top: 12px; }
+  .brand { font-size: 6px; letter-spacing: .1px; }
+  .model { font-size: 12px; }
+  .switches { gap: 8px; }
+  .switch .label { font-size: 5px; letter-spacing: 0; }
+  .led { flex-basis: 5px; width: 5px; height: 5px; }
+  .action-button { padding: 9px; font-size: 9px; gap: 6px; }
+  .action-button span { font-size: 8px; }
+  .manual { padding: 16px 16px 0; margin-top: 18px; }
+  .manual-grid { grid-template-columns: 1fr; gap: 18px; }
+  .manual li { font-size: 11px; }
+  .console-state { justify-content: flex-start; }
+}
+@media (max-width: 370px) {
+  .console-brand { display: none; }
+  .switches { margin-left: 0; justify-content: space-around; flex: 1; }
+  .dpad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); }
+  #pad .fire { width: 88px; height: 88px; }
+}
+@media (max-height: 600px) and (min-width: 651px) {
+  body { padding-top: 16px; }
+  .marquee { margin-bottom: 12px; }
+  .marquee h1 { font-size: 31px; }
+  .eyebrow { font-size: 8px; }
+  .subtitle { margin-top: 4px; font-size: 10px; }
+  .stripes { margin-top: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .switch .lever::after { transition: none; } }
+
+</style>
+</head>
+<body>
+  <header class="marquee">
+    <p class="eyebrow">ACTIVISION · 1982 · CAROL SHAW</p>
+    <h1>RIVER RAID</h1>
+    <p class="subtitle">Uma missão. Um rio. Nenhum retorno.</p>
+    <div class="stripes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+  </header>
+
+  <main class="game-room">
+    <section class="tv" aria-label="River Raid no televisor">
+      <div class="crt">
+        <canvas id="screen" width="160" height="192" tabindex="0" aria-label="Tela de River Raid. Setas movem o avião, espaço dispara e Enter inicia."></canvas>
+      </div>
+      <div class="deck">
+        <div class="console-brand"><span class="brand">VIDEO COMPUTER SYSTEM</span><span class="model">2600</span></div>
+        <div class="switches" aria-label="Chaves do console">
+          <button id="color-switch" class="switch" data-action="color" data-switch="tv" aria-pressed="false" aria-label="Alternar TV colorida e preto e branco" title="Cor / preto e branco (C)"><span class="lever" aria-hidden="true"></span><span class="label">COR · P&amp;B</span></button>
+          <button id="difficulty-switch" class="switch" data-action="difficulty" data-switch="difficulty" aria-pressed="false" aria-label="Alternar dificuldade B e A" title="Dificuldade B / A (L)"><span class="lever" aria-hidden="true"></span><span class="label">B · A</span></button>
+          <button id="select-button" class="switch momentary" data-action="select" data-switch="select" aria-label="Selecionar jogo de um ou dois jogadores" title="Selecionar jogo (1 ou 2)"><span class="lever" aria-hidden="true"></span><span class="label">GAME SELECT</span></button>
+          <button id="reset-button" class="switch momentary" data-action="reset" data-switch="reset" aria-label="Reiniciar partida" title="Reiniciar partida (R)"><span class="lever" aria-hidden="true"></span><span class="label">GAME RESET</span></button>
+        </div>
+        <span class="led" aria-label="Console ligado"></span>
+      </div>
+    </section>
+
+    <div class="game-toolbar" aria-label="Controles da partida">
+      <button id="start-button" class="action-button primary" data-action="start">DECOLAR <span>ENTER</span></button>
+      <button id="pause-button" class="action-button" data-action="pause" aria-pressed="false">PAUSA <span>P</span></button>
+      <button id="mute-button" class="action-button" data-action="mute" aria-pressed="false" aria-label="Alternar som"><span class="sound-icon" aria-hidden="true">♪</span> SOM <span>M</span></button>
+      <button id="fullscreen-button" class="action-button" data-action="fullscreen" aria-label="Alternar tela cheia">TELA CHEIA <span>F</span></button>
+    </div>
+    <p id="status" class="game-status" role="status" aria-live="polite">Pressione Enter ou FIRE para decolar.</p>
+
+    <div id="pad" aria-label="Joystick de toque">
+      <div class="dpad" aria-label="Direção e velocidade">
+        <button class="up" data-dir="up" aria-label="Acelerar">▲</button>
+        <button class="left" data-dir="left" aria-label="Mover avião para a esquerda">◀</button>
+        <span class="dpad-center" aria-hidden="true"></span>
+        <button class="right" data-dir="right" aria-label="Mover avião para a direita">▶</button>
+        <button class="down" data-dir="down" aria-label="Desacelerar">▼</button>
+      </div>
+      <div class="fire-control"><button id="fire-button" class="fire" data-control="fire" aria-label="Manter pressionado para disparar">FIRE</button><span>SEGURE PARA ATIRAR</span></div>
+    </div>
+
+    <section class="manual" aria-labelledby="manual-title">
+      <div class="manual-heading"><h2 id="manual-title">Manual de voo</h2><span class="manual-edition">ATARI 2600</span></div>
+      <div class="manual-grid">
+        <div>
+          <h3>Assuma o manche</h3>
+          <ul>
+            <li><kbd>←</kbd> <kbd>→</kbd> ou <kbd>A</kbd> <kbd>D</kbd> movem o avião.</li>
+            <li><kbd>↑</kbd> acelera · <kbd>↓</kbd> desacelera.</li>
+            <li><kbd>ESPAÇO</kbd> / <kbd>Z</kbd> / <kbd>X</kbd> disparam.</li>
+            <li><kbd>ENTER</kbd> inicia · <kbd>P</kbd> pausa · <kbd>R</kbd> reinicia.</li>
+            <li>Controle USB/Bluetooth: manche e botão de tiro. START inicia ou pausa.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Sobreviva ao rio</h3>
+          <ul>
+            <li>Voe sobre <b>FUEL</b> para abastecer. O combustível nunca espera.</li>
+            <li>Destrua navios, helicópteros, jatos e pontes. Evite as margens e as ilhas.</li>
+            <li>Navio <b>30</b> · helicóptero <b>60</b> · jato <b>100</b> · ponte <b>500</b>.</li>
+            <li>Depósito de combustível <b>80</b>. Avião extra a cada <b>10.000</b> pontos.</li>
+            <li>Comece com um avião e três reservas. No jogo 2, os jogadores alternam a cada vida.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="console-state" aria-label="Configuração do console"><span id="game-state">Jogo 1 · um jogador</span><span id="diff-state">Dificuldade B · tiros guiados</span><span id="tv-state">TV colorida</span><span id="mute-state">Som ligado</span></div>
+    </section>
+  </main>
+  <footer>Recriação independente do clássico de Carol Shaw para o Atari 2600. Não afiliada à Activision.</footer>
+
+  <script>
+window.RR = window.RR || {};
+
+// Native Atari playfield coordinates; rendering stretches horizontal pixels.
+window.RR.Config = (function () {
+  'use strict';
+
+  const PALETTE = {
+    water: '#584FDA',
+    river: '#584FDA',
+    land: '#649228',
+    landDark: '#0C4A1C',
+    hud: '#ABABAB',
+    black: '#000000',
+    yellow: '#FFF456',
+    plane: '#FFF456',
+    player: '#FFF456',
+    score: '#FFF456',
+    brand: '#FFF456',
+    plane2: '#000000',
+    white: '#F2F2F2',
+    fuel: '#EA51EB',
+    fuelRed: '#F2F2F2',
+    tanker: '#B21D17',
+    tankerDeck: '#000000',
+    tankerHull: '#61D070',
+    helicopter: '#0A4108',
+    helicopterCabin: '#0C048B',
+    helicopterRotor: '#FFC545',
+    jet: '#FFF456',
+    road: '#CDCDCD',
+    roadEdge: '#797979',
+    roadLine: '#FFF456',
+    bridge: '#C85F24',
+    bridgeDark: '#833008',
+    bridgeEdge: '#451904',
+    explosion: '#FFF456',
+    explosion2: '#FFC51D',
+    tree: '#B2D241',
+  };
+
+  const TUNE = {
+    minSpeed: 30,
+    cruiseSpeed: 60,
+    maxSpeed: 110,
+    steerSpeed: 52,
+    acceleration: 90,
+    fuelDrain: 3.2,
+    refuelRate: 60,
+    bulletSpeed: 220,
+    fireInterval: 0.18,
+    deathTime: 1.2,
+    startReserves: 3,
+    maxReserves: 9,
+    extraJetScore: 10000,
+    lowFuel: 25,
+    sectionLength: 700,
+  };
+
+  const SCORES = { tanker: 30, helicopter: 60, fuel: 80, jet: 100, bridge: 500 };
+  const C = {
+    W: 160,
+    H: 199,
+    PLAY_H: 162,
+    PLANE_Y: 150,
+    PLANE_WIDTH: 7,
+    PLANE_HEIGHT: 13,
+    ASPECT: 4 / 3,
+    PALETTE: PALETTE,
+    PAL: PALETTE,
+    TUNE: TUNE,
+    SCORES: SCORES,
+  };
+  return C;
+})();
+
+window.RR.config = window.RR.Config;
+
+</script>
+  <script>
+window.RR = window.RR || {};
+
+// '.' is transparent; '1', '2' and '3' select the object's three ink colors.
+// Plane, tanker, helicopter and fuel silhouettes follow original 2600 captures.
+window.RR.Sprites = (function () {
+  'use strict';
+
+  function mirror(bitmap) {
+    return bitmap.map(function (row) { return row.split('').reverse().join(''); });
+  }
+
+  const plane = [
+    '...1...',
+    '...1...',
+    '...1...',
+    '..111..',
+    '.11111.',
+    '1111111',
+    '1111111',
+    '11.1.11',
+    '1..1..1',
+    '...1...',
+    '..111..',
+    '.11111.',
+    '.1.1.1.',
+  ];
+  const planeLeft = [
+    '..1....',
+    '..1....',
+    '..1....',
+    '.111...',
+    '11111..',
+    '111111.',
+    '11.1111',
+    '1..1.11',
+    '...1..1',
+    '...1...',
+    '..111..',
+    '.11111.',
+    '.1.1.1.',
+  ];
+  const tanker = [
+    '......22........',
+    '......22........',
+    '....2222........',
+    '..22222222......',
+    '1111111111111111',
+    '11111111111111..',
+    '333333333333....',
+    '..3333333333....',
+  ];
+  const helicopter = [
+    [
+      '...333..',
+      '.....333',
+      '.....3..',
+      '....111.',
+      '1..11111',
+      '22222222',
+      '22222222',
+      '1...111.',
+      '.....1..',
+      '....111.',
+    ],
+    [
+      '......33',
+      '3333333.',
+      '.....3..',
+      '....111.',
+      '1..11111',
+      '22222222',
+      '22222222',
+      '1...111.',
+      '.....1..',
+      '....111.',
+    ],
+  ];
+  const fuel = [
+    '.11111.',
+    '11...11',
+    '11.1111',
+    '11..111',
+    '11.1111',
+    '11.1111',
+    '2222222',
+    '22.2.22',
+    '22.2.22',
+    '22.2.22',
+    '22...22',
+    '2222222',
+    '11...11',
+    '11.1111',
+    '11..111',
+    '11.1111',
+    '11...11',
+    '1111111',
+    '22.2222',
+    '22.2222',
+    '22.2222',
+    '22.2222',
+    '22...22',
+    '2222222',
+  ];
+  const jet = [
+    '......11........',
+    '.....111........',
+    '..1..111........',
+    '.1111111111111..',
+    '1111111111111111',
+    '.1111111111111..',
+    '..1..111........',
+    '......11........',
+  ];
+  const explosion = [
+    [
+      '.......1.......',
+      '....1..1..1....',
+      '.....11111.....',
+      '..1..12221..1..',
+      '...112222211...',
+      '....1222221....',
+      '.1112222222111.',
+      '111222222222111',
+      '.1112222222111.',
+      '....1222221....',
+      '...112222211...',
+      '..1..12221..1..',
+      '.....11111.....',
+      '....1..1..1....',
+      '.......1.......',
+    ],
+    [
+      '...1.......1...',
+      '.......1.......',
+      '.1...2...2...1.',
+      '...2...2...2...',
+      '.....1...1.....',
+      '..2...222...2..',
+      '....1222221....',
+      '1..222222222..1',
+      '....1222221....',
+      '..2...222...2..',
+      '.....1...1.....',
+      '...2...2...2...',
+      '.1...2...2...1.',
+      '.......1.......',
+      '...1.......1...',
+    ],
+    [
+      '.1...........1.',
+      '...............',
+      '.......2.......',
+      '...2.......2...',
+      '...............',
+      '.....2...2.....',
+      '...............',
+      '2......1......2',
+      '...............',
+      '.....2...2.....',
+      '...............',
+      '...2.......2...',
+      '.......2.......',
+      '...............',
+      '.1...........1.',
+    ],
+  ];
+  const house = [
+    '....222222....',
+    '..2222222222..',
+    '22222222222222',
+    '11111111111111',
+    '11..11..11..11',
+    '11..11..11..11',
+    '11111111111111',
+  ];
+  const tree = ['....11....', '....11....', '..111111..', '1111111111', '..111111..', '....22....'];
+
+  return {
+    plane: plane,
+    planeLeft: planeLeft,
+    planeRight: mirror(planeLeft),
+    tanker: tanker,
+    helicopter: helicopter[0],
+    helicopter2: helicopter[1],
+    helicopterFrames: helicopter,
+    jet: jet,
+    fuel: fuel,
+    explosion: explosion[0],
+    explosion2: explosion[1],
+    explosion3: explosion[2],
+    explosionFrames: explosion,
+    house: house,
+    tree: tree,
+    mirror: mirror,
+  };
+})();
+
+// Monospaced bitmap lettering keeps both HUD and overlays independent of fonts.
+window.RR.Font = {
+  A: ['01110', '11011', '11011', '11111', '11011', '11011', '11011'],
+  B: ['11110', '11011', '11011', '11110', '11011', '11011', '11110'],
+  C: ['01111', '11000', '11000', '11000', '11000', '11000', '01111'],
+  D: ['11110', '11011', '11011', '11011', '11011', '11011', '11110'],
+  E: ['11111', '11000', '11000', '11110', '11000', '11000', '11111'],
+  F: ['11111', '11000', '11000', '11110', '11000', '11000', '11000'],
+  G: ['01111', '11000', '11000', '11011', '11011', '11011', '01111'],
+  H: ['11011', '11011', '11011', '11111', '11011', '11011', '11011'],
+  I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
+  J: ['00111', '00011', '00011', '00011', '00011', '11011', '01110'],
+  K: ['11011', '11011', '11110', '11100', '11110', '11011', '11011'],
+  L: ['11000', '11000', '11000', '11000', '11000', '11000', '11111'],
+  M: ['10001', '11011', '11111', '11111', '11011', '11011', '11011'],
+  N: ['11011', '11011', '11111', '11111', '11111', '11011', '11011'],
+  O: ['01110', '11011', '11011', '11011', '11011', '11011', '01110'],
+  P: ['11110', '11011', '11011', '11110', '11000', '11000', '11000'],
+  Q: ['01110', '11011', '11011', '11011', '11111', '01110', '00011'],
+  R: ['11110', '11011', '11011', '11110', '11100', '11010', '11011'],
+  S: ['01111', '11000', '11000', '01110', '00011', '00011', '11110'],
+  T: ['11111', '00100', '00100', '00100', '00100', '00100', '00100'],
+  U: ['11011', '11011', '11011', '11011', '11011', '11011', '01110'],
+  V: ['11011', '11011', '11011', '11011', '11011', '01110', '00100'],
+  W: ['11011', '11011', '11011', '11111', '11111', '11011', '10001'],
+  X: ['11011', '11011', '01110', '00100', '01110', '11011', '11011'],
+  Y: ['11011', '11011', '11011', '01110', '00100', '00100', '00100'],
+  Z: ['11111', '00011', '00110', '00100', '01100', '11000', '11111'],
+  0: ['01110', '11011', '11011', '11011', '11011', '11011', '01110'],
+  1: ['00100', '01100', '00100', '00100', '00100', '00100', '01110'],
+  2: ['01110', '11011', '00011', '00110', '01100', '11000', '11111'],
+  3: ['11110', '00011', '00011', '01110', '00011', '00011', '11110'],
+  4: ['11011', '11011', '11011', '11111', '00011', '00011', '00011'],
+  5: ['11111', '11000', '11000', '11110', '00011', '00011', '11110'],
+  6: ['01110', '11000', '11000', '11110', '11011', '11011', '01110'],
+  7: ['11111', '00011', '00011', '00110', '00100', '01100', '01100'],
+  8: ['01110', '11011', '11011', '01110', '11011', '11011', '01110'],
+  9: ['01110', '11011', '11011', '01111', '00011', '00011', '01110'],
+  '-': ['00000', '00000', '00000', '11111', '00000', '00000', '00000'],
+  ':': ['00000', '00100', '00100', '00000', '00100', '00100', '00000'],
+  '.': ['00000', '00000', '00000', '00000', '00000', '00100', '00100'],
+  '/': ['00001', '00011', '00110', '00100', '01100', '11000', '10000'],
+  '!': ['00100', '00100', '00100', '00100', '00100', '00000', '00100'],
+  ' ': ['00000', '00000', '00000', '00000', '00000', '00000', '00000'],
+};
+
+window.RR.sprites = window.RR.Sprites;
+
+</script>
+  <script>
+window.RR = window.RR || {};
+
+window.RR.World = (function () {
+  'use strict';
+
+  const LENGTH = 700;
+  const DIMENSIONS = {
+    tanker: [16, 8], helicopter: [8, 10], fuel: [7, 24], jet: [16, 8], bridge: [32, 22],
+  };
+
+  // Half-widths are authored at landmarks, then quantized to four Atari pixels.
+  // Mirrored banks and central islands reproduce the reflected 2600 playfield.
+  const COURSES = [
+    {
+      banks: [[0, 16], [44, 16], [66, 36], [172, 36], [252, 52], [340, 52], [412, 48], [508, 40], [570, 36], [640, 16], [700, 16]],
+      islands: [[360, 504, 12]],
+    },
+    {
+      banks: [[0, 16], [48, 16], [136, 56], [216, 64], [368, 56], [432, 64], [528, 40], [644, 16], [700, 16]],
+      islands: [[144, 508, 32]],
+    },
+    {
+      banks: [[0, 16], [44, 16], [116, 40], [216, 52], [300, 52], [376, 36], [464, 44], [544, 44], [640, 16], [700, 16]],
+      islands: [[184, 324, 24], [400, 536, 20]],
+    },
+    {
+      banks: [[0, 16], [48, 16], [144, 48], [228, 56], [320, 64], [412, 56], [504, 36], [584, 32], [640, 16], [700, 16]],
+      islands: [[172, 484, 32]],
+    },
+    {
+      banks: [[0, 16], [48, 16], [144, 40], [232, 48], [320, 36], [408, 52], [492, 48], [568, 36], [640, 16], [700, 16]],
+      islands: [[180, 284, 20], [368, 532, 24]],
+    },
+  ];
+
+  function randomFor(seed, section, salt) {
+    let n = (seed ^ Math.imul(section + 1, 0x9E3779B9) ^ Math.imul(salt + 1, 0x85EBCA6B)) >>> 0;
+    n ^= n << 13;
+    n ^= n >>> 17;
+    n ^= n << 5;
+    return (n >>> 0) / 4294967296;
+  }
+
+  function sectionAt(distance) { return Math.max(0, Math.floor(distance / LENGTH)); }
+
+  function interpolate(knots, distance) {
+    for (let i = 1; i < knots.length; i++) {
+      if (distance <= knots[i][0]) {
+        const previous = knots[i - 1], next = knots[i];
+        const fraction = Math.max(0, (distance - previous[0]) / (next[0] - previous[0]));
+        return previous[1] + (next[1] - previous[1]) * fraction;
+      }
+    }
+    return knots[knots.length - 1][1];
+  }
+
+  function create(seed) {
+    seed = Number.isFinite(seed) ? seed >>> 0 : 1982;
+    const entities = [];
+    const decorations = [];
+    const generated = new Set();
+    const cache = new Map();
+
+    function course(section) {
+      if (!cache.has(section)) {
+        const index = section < COURSES.length ? section : 1 + Math.floor(randomFor(seed, section, 0) * (COURSES.length - 1));
+        cache.set(section, COURSES[index]);
+      }
+      return cache.get(section);
+    }
+
+    function banks(distance) {
+      const section = sectionAt(distance);
+      const offset = Math.max(0, distance - section * LENGTH);
+      const layout = course(section);
+      const halfWidth = Math.max(16, Math.round(interpolate(layout.banks, offset) / 4) * 4);
+      const islands = [];
+      for (const island of layout.islands) {
+        if (offset <= island[0] || offset >= island[1]) continue;
+        const taper = Math.min(1, (offset - island[0]) / 44, (island[1] - offset) / 44);
+        const halfIsland = Math.floor(Math.min(island[2] * taper, halfWidth - 20) / 4) * 4;
+        if (halfIsland >= 4) islands.push({ left: 80 - halfIsland, right: 80 + halfIsland });
+      }
+      return {
+        left: 80 - halfWidth,
+        right: 80 + halfWidth,
+        islands: islands,
+        land: section % 2 || islands.length ? 'landDark' : 'land',
+        section: section,
+      };
+    }
+
+    function channels(distance, height) {
+      // Intersect the water at the nose, center and tail of an object.
+      const samples = [-height / 2, 0, height / 2].map(function (offset) { return banks(distance + offset); });
+      const left = Math.max.apply(null, samples.map(function (b) { return b.left; }));
+      const right = Math.min.apply(null, samples.map(function (b) { return b.right; }));
+      const islandLeft = samples.reduce(function (n, b) { return b.islands.length ? Math.min(n, b.islands[0].left) : n; }, right);
+      const islandRight = samples.reduce(function (n, b) { return b.islands.length ? Math.max(n, b.islands[0].right) : n; }, left);
+      return islandRight > islandLeft ? [[left, islandLeft], [islandRight, right]] : [[left, right]];
+    }
+
+    function add(type, offset, section, salt, lane) {
+      const dimensions = DIMENSIONS[type];
+      const d = section * LENGTH + offset;
+      const intervals = channels(d, dimensions[1]);
+      const channel = intervals[Math.min(intervals.length - 1, lane === undefined ? Math.floor(randomFor(seed, section, salt) * intervals.length) : lane)];
+      const margin = dimensions[0] / 2 + 2;
+      const left = channel[0] + margin, right = channel[1] - margin;
+      const x = type === 'bridge' ? 80 : Math.round(left + (right - left) * (0.2 + 0.6 * randomFor(seed, section, salt + 99)));
+      const moving = type === 'tanker' || type === 'helicopter';
+      const speed = type === 'jet' ? 40 + Math.min(35, section * 1.4) : moving ? 5 + Math.min(16, section * 1.1) + randomFor(seed, section, salt + 55) * 4 : 0;
+      entities.push({
+        id: section + ':' + type + ':' + salt,
+        type: type,
+        x: x,
+        baseX: x,
+        d: d,
+        width: dimensions[0],
+        height: dimensions[1],
+        dir: randomFor(seed, section, salt + 2) < 0.5 ? -1 : 1,
+        speed: speed,
+        alive: true,
+        section: section + 1,
+        checkpoint: type === 'bridge' ? d + 28 : undefined,
+      });
+    }
+
+    function decorate(section) {
+      for (const offset of [140, 560]) {
+        const d = section * LENGTH + offset;
+        const b = banks(d);
+        const side = randomFor(seed, section, offset) < 0.5 ? -1 : 1;
+        const x = side < 0 ? b.left - 15 : b.right + 15;
+        if (x < 8 || x > 152) continue;
+        decorations.push({ id: section + ':house:' + offset, type: 'house', x: x, d: d, width: 14, height: 7 });
+        decorations.push({ id: section + ':tree:' + offset, type: 'tree', x: x + side * 4, d: d - 13, width: 10, height: 6 });
+      }
+    }
+
+    function generate(section) {
+      if (generated.has(section)) return;
+      generated.add(section);
+      if (section === 0) {
+        // The opening tableau follows the cartridge's SELECT screenshot:
+        // cleared starter bridge, centered tanker, right fuel, left helicopter.
+        entities.push({ id: 'starter', type: 'bridge', x: 80, baseX: 80, d: 4, width: 32, height: 22, dir: 1, speed: 0, alive: false, section: 0, checkpoint: 0, starter: true });
+        add('tanker', 66, section, 0);
+        entities[entities.length - 1].x = entities[entities.length - 1].baseX = 80;
+        add('fuel', 101, section, 1);
+        entities[entities.length - 1].x = entities[entities.length - 1].baseX = 94;
+        add('helicopter', 132, section, 2);
+        entities[entities.length - 1].x = entities[entities.length - 1].baseX = 70;
+        add('fuel', 292, section, 9);
+        add('tanker', 348, section, 3);
+        add('fuel', 438, section, 4, 0);
+        add('helicopter', 516, section, 5);
+        add('fuel', 574, section, 6);
+        add('tanker', 628, section, 7);
+      } else {
+        const positions = [126, 208, 292, 374, 458, 548, 618];
+        const fuelSlots = section < 4 ? [2, 5] : [section % 2 ? 2 : 4];
+        positions.forEach(function (offset, index) {
+          if (fuelSlots.indexOf(index) >= 0) {
+            add('fuel', offset, section, index, section % 2);
+          } else {
+            const jetSlot = section >= 2 && index === (section % 2 ? 1 : 4);
+            add(jetSlot ? 'jet' : index % 2 ? 'helicopter' : 'tanker', offset, section, index);
+          }
+        });
+      }
+      add('bridge', LENGTH, section, 8);
+      decorate(section);
+    }
+
+    function ensure(distance) {
+      if (!Number.isFinite(distance)) return;
+      const first = sectionAt(distance - 180);
+      const last = sectionAt(distance + 350);
+      for (let section = first; section <= last; section++) generate(section);
+      // A fresh world can jump directly to any checkpoint without replaying all
+      // previous sections. Discard old scenery so an endless raid stays bounded.
+      for (let i = entities.length - 1; i >= 0; i--) if (entities[i].d < distance - 180 || entities[i].d > (last + 1) * LENGTH) entities.splice(i, 1);
+      for (let i = decorations.length - 1; i >= 0; i--) if (decorations[i].d < distance - 180 || decorations[i].d > (last + 1) * LENGTH) decorations.splice(i, 1);
+      for (const section of generated) if (section < first || section > last) generated.delete(section);
+      for (const section of cache.keys()) if (section < first - 1 || section > last + 1) cache.delete(section);
+    }
+
+    function checkpointBefore(distance) {
+      const bridge = Math.max(0, Math.floor((distance - 28) / LENGTH));
+      return bridge ? bridge * LENGTH + 28 : 0;
+    }
+
+    return {
+      seed: seed,
+      entities: entities,
+      decorations: decorations,
+      banks: banks,
+      ensure: ensure,
+      checkpointBefore: checkpointBefore,
+      sectionAt: sectionAt,
+      sectionLength: LENGTH,
+    };
+  }
+
+  return { create: create };
+})();
+
+</script>
+  <script>
+(function () {
+  'use strict';
+  var RR = window.RR = window.RR || {};
+  var context = null;
+  var master = null;
+  var motor = null;
+  var motorGain = null;
+  var rumble = null;
+  var rumbleGain = null;
+  var fuelTone = null;
+  var fuelGain = null;
+  var alarmTone = null;
+  var alarmGain = null;
+  var noiseBuffer = null;
+  var isRefueling = false;
+  var lastMotorFrequency = -1;
+  var lastMotorGain = -1;
+  var lastFuelFrequency = -1;
+  var lastFuelGain = -1;
+  var lastAlarmGain = -1;
+  var resuming = false;
+  var Audio = { muted: false, available: true };
+
+  function oscillator(frequency, type, gain) {
+    var source = context.createOscillator();
+    var volume = context.createGain();
+    source.type = type;
+    source.frequency.value = frequency;
+    volume.gain.value = gain;
+    source.connect(volume);
+    volume.connect(master);
+    source.start();
+    return { source: source, gain: volume };
+  }
+
+  function initialize() {
+    var Context = window.AudioContext || window.webkitAudioContext;
+    if (!Context) { Audio.available = false; return; }
+    try {
+      context = new Context({ latencyHint: 'interactive' });
+      master = context.createGain();
+      master.gain.value = Audio.muted ? 0 : .34;
+      master.connect(context.destination);
+      var engineVoice = oscillator(55, 'square', 0);
+      motor = engineVoice.source;
+      motorGain = engineVoice.gain;
+      var rumbleVoice = oscillator(28, 'square', 0);
+      rumble = rumbleVoice.source;
+      rumbleGain = rumbleVoice.gain;
+      var fuelVoice = oscillator(330, 'square', 0);
+      fuelTone = fuelVoice.source;
+      fuelGain = fuelVoice.gain;
+      var alarmVoice = oscillator(220, 'square', 0);
+      alarmTone = alarmVoice.source;
+      alarmGain = alarmVoice.gain;
+      noiseBuffer = context.createBuffer(1, context.sampleRate, context.sampleRate);
+      var data = noiseBuffer.getChannelData(0);
+      var register = 0x7fff;
+      for (var i = 0; i < data.length; i++) {
+        var bit = (register ^ (register >> 1)) & 1;
+        register = (register >> 1) | (bit << 14);
+        data[i] = (register & 1) ? .8 : -.8;
+      }
+    } catch (error) { context = null; Audio.available = false; }
+  }
+
+  function unlock() {
+    if (!context && Audio.available) initialize();
+    if (context && context.state === 'suspended' && !resuming) {
+      resuming = true;
+      context.resume().then(function () { resuming = false; }, function () { resuming = false; });
+    }
+  }
+
+  function setMuted(muted) {
+    Audio.muted = !!muted;
+    if (master) master.gain.setTargetAtTime(Audio.muted ? 0 : .34, context.currentTime, .015);
+  }
+
+  function ready() { return context && context.state === 'running' && !Audio.muted; }
+
+  function tone(frequency, endFrequency, duration, gain, offset) {
+    if (!ready()) return;
+    var start = context.currentTime + (offset || 0);
+    var source = context.createOscillator();
+    var volume = context.createGain();
+    source.type = 'square';
+    source.frequency.setValueAtTime(frequency, start);
+    source.frequency.exponentialRampToValueAtTime(Math.max(20, endFrequency), start + duration);
+    volume.gain.setValueAtTime(0, start);
+    volume.gain.linearRampToValueAtTime(gain, start + .003);
+    volume.gain.exponentialRampToValueAtTime(.0001, start + duration);
+    source.connect(volume);
+    volume.connect(master);
+    source.start(start);
+    source.stop(start + duration + .015);
+    source.onended = function () { source.disconnect(); volume.disconnect(); };
+  }
+
+  function noise(duration, gain, cutoff) {
+    if (!ready()) return;
+    var start = context.currentTime;
+    var source = context.createBufferSource();
+    var volume = context.createGain();
+    var filter = context.createBiquadFilter();
+    source.buffer = noiseBuffer;
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(cutoff || 2400, start);
+    filter.frequency.exponentialRampToValueAtTime(160, start + duration);
+    volume.gain.setValueAtTime(gain, start);
+    volume.gain.exponentialRampToValueAtTime(.0001, start + duration);
+    source.connect(filter);
+    filter.connect(volume);
+    volume.connect(master);
+    source.start(start);
+    source.stop(start + duration);
+    source.onended = function () { source.disconnect(); filter.disconnect(); volume.disconnect(); };
+  }
+
+  function engine(speed, fuel, isFlying) {
+    if (!context || !motor) return;
+    var now = context.currentTime;
+    var normalized = Math.max(0, Math.min(1, speed > 1 ? speed / 100 : speed || 0));
+    var frequency = 48 + Math.round(normalized * 11) * 6;
+    var gain = isFlying ? .09 : 0;
+    if (frequency !== lastMotorFrequency) {
+      motor.frequency.setTargetAtTime(frequency, now, .025);
+      rumble.frequency.setTargetAtTime(Math.round(frequency / 2), now, .025);
+      lastMotorFrequency = frequency;
+    }
+    if (gain !== lastMotorGain) {
+      motorGain.gain.setTargetAtTime(gain, now, .02);
+      rumbleGain.gain.setTargetAtTime(isFlying ? .025 : 0, now, .02);
+      lastMotorGain = gain;
+    }
+    var fuelFrequency = (Math.floor(now * 12) % 2) ? 440 : 330;
+    if (fuel >= 99.9) fuelFrequency *= 2;
+    var fuelVolume = isFlying && isRefueling ? .1 : 0;
+    if (fuelVolume && fuelFrequency !== lastFuelFrequency) {
+      fuelTone.frequency.setValueAtTime(fuelFrequency, now);
+      lastFuelFrequency = fuelFrequency;
+    }
+    if (fuelVolume !== lastFuelGain) { fuelGain.gain.setTargetAtTime(fuelVolume, now, .008); lastFuelGain = fuelVolume; }
+    var alarmVolume = isFlying && fuel < 25 && !isRefueling && (Math.floor(now * 5) % 2 === 0) ? .12 : 0;
+    if (alarmVolume !== lastAlarmGain) { alarmGain.gain.setTargetAtTime(alarmVolume, now, .008); lastAlarmGain = alarmVolume; }
+  }
+
+  function refuel(active) { isRefueling = !!active; }
+  function shot() { tone(850, 145, .075, .18); }
+  function explode() { noise(.42, .44, 3000); tone(110, 28, .28, .12); }
+  function bridge() { noise(.55, .5, 3900); tone(150, 35, .36, .15); }
+  function extraLife() {
+    [220, 330, 440, 660].forEach(function (frequency, index) { tone(frequency, frequency, .13, .14, index * .115); });
+  }
+  function stop() { isRefueling = false; engine(0, 100, false); }
+
+  Audio.unlock = unlock;
+  Audio.setMuted = setMuted;
+  Audio.engine = engine;
+  Audio.shot = shot;
+  Audio.explode = explode;
+  Audio.refuel = refuel;
+  Audio.bridge = bridge;
+  Audio.extraLife = extraLife;
+  Audio.stop = stop;
+  RR.Audio = Audio;
+})();
+
+</script>
+  <script>
+(function () {
+  'use strict';
+  var RR = window.RR = window.RR || {};
+  var keys = Object.create(null);
+  var buttonKeys = Object.create(null);
+  var pointers = new Map();
+  var callback = function () {};
+  var initialized = false;
+  var active = true;
+  var padStart = false;
+  var skipPadAction = false;
+  var state = { left: false, right: false, up: false, down: false, fire: false };
+  var keyDirections = {
+    ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+    ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
+    Space: 'fire', KeyZ: 'fire', KeyX: 'fire'
+  };
+  var actions = {
+    Enter: 'start', KeyP: 'pause', KeyR: 'reset', KeyM: 'mute',
+    KeyC: 'color', KeyL: 'difficulty', KeyF: 'fullscreen',
+    Digit1: 'select1', Digit2: 'select2', Numpad1: 'select1', Numpad2: 'select2'
+  };
+
+  function unlockAudio() {
+    if (RR.Audio) RR.Audio.unlock();
+  }
+
+  function editable(target) {
+    return !!(target && (target.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(target.tagName)));
+  }
+
+  function nativeButtonKey(event) {
+    return (event.code === 'Enter' || event.code === 'Space') && event.target.closest && event.target.closest('button, a, [role="button"]');
+  }
+
+  function heldClasses() {
+    document.querySelectorAll('#pad [data-dir], #pad [data-control="fire"]').forEach(function (button) {
+      var control = button.dataset.dir || 'fire';
+      var held = false;
+      pointers.forEach(function (pointer) { if (pointer.control === control) held = true; });
+      Object.keys(buttonKeys).forEach(function (code) { if (buttonKeys[code] === control) held = true; });
+      button.classList.toggle('held', held);
+    });
+  }
+
+  function releasePointer(event) {
+    if (pointers.delete(event.pointerId)) heldClasses();
+  }
+
+  function pointerControl(element, control) {
+    element.addEventListener('pointerdown', function (event) {
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      event.preventDefault();
+      unlockAudio();
+      if (event.pointerType !== 'mouse') document.body.classList.add('touch');
+      pointers.set(event.pointerId, { control: control, direction: control !== 'fire' });
+      try { element.setPointerCapture(event.pointerId); } catch (error) { /* A canceled pointer cannot be captured. */ }
+      if (element.id === 'screen') element.focus({ preventScroll: true });
+      heldClasses();
+    });
+    element.addEventListener('pointermove', function (event) {
+      var pointer = pointers.get(event.pointerId);
+      if (!pointer || !pointer.direction) return;
+      var hovered = document.elementFromPoint(event.clientX, event.clientY);
+      var direction = hovered && hovered.closest('#pad [data-dir]');
+      pointer.control = direction ? direction.dataset.dir : null;
+      heldClasses();
+    });
+    element.addEventListener('pointerup', releasePointer);
+    element.addEventListener('pointercancel', releasePointer);
+    element.addEventListener('lostpointercapture', releasePointer);
+    element.addEventListener('contextmenu', function (event) { event.preventDefault(); });
+    if (element.id !== 'screen') {
+      element.addEventListener('keydown', function (event) {
+        if (event.code !== 'Space' && event.code !== 'Enter') return;
+        event.preventDefault();
+        unlockAudio();
+        buttonKeys[control + event.code] = control;
+        heldClasses();
+      });
+      element.addEventListener('keyup', function (event) { delete buttonKeys[control + event.code]; heldClasses(); });
+      element.addEventListener('blur', function () {
+        delete buttonKeys[control + 'Space'];
+        delete buttonKeys[control + 'Enter'];
+        heldClasses();
+      });
+    }
+  }
+
+  function init(onAction) {
+    callback = typeof onAction === 'function' ? onAction : callback;
+    if (initialized) return;
+    initialized = true;
+    active = !document.hidden;
+    if (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
+    window.addEventListener('keydown', function (event) {
+      if (editable(event.target) || nativeButtonKey(event) || event.altKey || event.ctrlKey || event.metaKey) return;
+      var direction = keyDirections[event.code];
+      var action = actions[event.code];
+      if (!direction && !action) return;
+      event.preventDefault();
+      unlockAudio();
+      if (direction) keys[event.code] = true;
+      if (action && !event.repeat && !keys[event.code]) {
+        keys[event.code] = true;
+        callback(action);
+      }
+    });
+    window.addEventListener('keyup', function (event) {
+      if (keys[event.code]) delete keys[event.code];
+    });
+    window.addEventListener('blur', function () {
+      active = false;
+      clear();
+    });
+    window.addEventListener('focus', function () { active = true; skipPadAction = true; });
+    document.addEventListener('visibilitychange', function () {
+      active = !document.hidden;
+      if (!active) clear();
+      else skipPadAction = true;
+    });
+    window.addEventListener('pointerup', releasePointer);
+    window.addEventListener('pointercancel', releasePointer);
+    window.addEventListener('gamepaddisconnected', function () { padStart = false; });
+    document.querySelectorAll('[data-action]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        unlockAudio();
+        callback(button.dataset.action);
+      });
+    });
+    document.querySelectorAll('#pad [data-dir]').forEach(function (button) { pointerControl(button, button.dataset.dir); });
+    document.querySelectorAll('[data-control="fire"]').forEach(function (button) { pointerControl(button, 'fire'); });
+    var canvas = document.getElementById('screen');
+    if (canvas) pointerControl(canvas, 'fire');
+  }
+
+  function poll() {
+    state.left = state.right = state.up = state.down = state.fire = false;
+    if (!active || document.hidden) return state;
+    Object.keys(keys).forEach(function (code) {
+      if (keyDirections[code]) state[keyDirections[code]] = true;
+    });
+    Object.keys(buttonKeys).forEach(function (code) { state[buttonKeys[code]] = true; });
+    pointers.forEach(function (pointer) { if (pointer.control) state[pointer.control] = true; });
+    var start = false;
+    var gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (var i = 0; i < gamepads.length; i++) {
+      var pad = gamepads[i];
+      if (!pad || !pad.connected) continue;
+      var pressed = function (index) { return !!(pad.buttons[index] && pad.buttons[index].pressed); };
+      var x = pad.axes[0] || 0;
+      var y = pad.axes[1] || 0;
+      state.left = state.left || x < -.22 || pressed(14);
+      state.right = state.right || x > .22 || pressed(15);
+      state.up = state.up || y < -.22 || pressed(12);
+      state.down = state.down || y > .22 || pressed(13);
+      state.fire = state.fire || pressed(0) || pressed(1) || pressed(2) || pressed(7);
+      start = start || pressed(9);
+    }
+    if (start && !padStart && !skipPadAction) { unlockAudio(); callback('start'); }
+    if (state.fire) unlockAudio();
+    padStart = start;
+    skipPadAction = false;
+    return state;
+  }
+
+  function clear() {
+    keys = Object.create(null);
+    buttonKeys = Object.create(null);
+    pointers.clear();
+    state.left = state.right = state.up = state.down = state.fire = false;
+    padStart = false;
+    skipPadAction = true;
+    heldClasses();
+  }
+
+  RR.Input = { state: state, init: init, poll: poll, clear: clear };
+})();
+
+</script>
+  <script>
+window.RR = window.RR || {};
+
+(function (RR) {
+  'use strict';
+
+  const C = RR.Config;
+  const T = C.TUNE;
+  const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
+  const silent = new Proxy({}, { get: () => () => {} });
+  const controls = ['left', 'right', 'up', 'down', 'fire'];
+  // Six-by-eight HUD digits and the cartridge's compact signature. The 0, 1,
+  // 2, 3, 7 and 9 bitmaps were sampled from original Atari 2600 captures.
+  const scoreFont = {
+    0: ['.1111.', '11..11', '11..11', '11..11', '11..11', '11..11', '11..11', '.1111.'],
+    1: ['..11..', '.111..', '..11..', '..11..', '..11..', '..11..', '..11..', '.1111.'],
+    2: ['.1111.', '1...11', '....11', '....11', '.1111.', '11....', '11....', '111111'],
+    3: ['.1111.', '1...11', '....11', '...11.', '...11.', '....11', '1...11', '.1111.'],
+    4: ['...11.', '..111.', '.1.11.', '11.11.', '111111', '...11.', '...11.', '...11.'],
+    5: ['111111', '11....', '11....', '11111.', '....11', '....11', '1...11', '.1111.'],
+    6: ['.1111.', '11...1', '11....', '11111.', '11..11', '11..11', '11..11', '.1111.'],
+    7: ['111111', '1....1', '....11', '...11.', '..11..', '..11..', '..11..', '..11..'],
+    8: ['.1111.', '11..11', '11..11', '.1111.', '11..11', '11..11', '11..11', '.1111.'],
+    9: ['.1111.', '11..11', '11..11', '11..11', '.11111', '....11', '1...11', '.1111.'],
+    '!': ['..11..', '..11..', '..11..', '..11..', '..11..', '......', '..11..', '..11..'],
+  };
+  const signature = [
+    '................................',
+    '....11111111....1111111.........',
+    '.1.....1...1...11...............',
+    '111.11.1.1.1..11..111.1.111.1..1',
+    '1.1.1..1.1.1.11.1.1...1.1.1.11.1',
+    '111.1..1.1.111..1.111.1.1.1.1111',
+    '1.1.1..1.1.11...1...1.1.1.1.1.11',
+    '1.1.11.1.1.1....1.111.1.111.1..1',
+  ];
+
+  // The simulation has no DOM or audio dependency. All coordinates are Atari
+  // pixels; distance is measured forward along the river, in scanlines.
+  class Game {
+    constructor(options = {}) {
+      this.audio = options.audio || silent;
+      this.worldFactory = options.worldFactory || (() => RR.World.create());
+      this.world = options.world || this.worldFactory();
+      this.expert = false;
+      this.gameMode = 1;
+      this.player = 0;
+      this.players = [];
+      this.phase = 'title';
+      this.previousPhase = 'playing';
+      this.reason = '';
+      this.time = 0;
+      this.highScore = 0;
+      this.startArmed = true;
+      this.onScore = options.onScore || (() => {});
+      this.initializePilot();
+      this.world.ensure(this.distance);
+    }
+
+    initializePilot() {
+      this.x = 80;
+      this.distance = 0;
+      this.speed = T.cruiseSpeed;
+      this.fuel = 100;
+      this.score = 0;
+      this.lives = 4; // One jet on the river and three jets in reserve.
+      this.checkpoint = 0;
+      this.bridges = 0;
+      this.nextExtraLife = 10000;
+      this.bullets = [];
+      this.effects = [];
+      this.fireTimer = 0;
+      this.deathTimer = 0;
+      this.refueling = false;
+      this.bank = 0;
+    }
+
+    snapshotPilot() {
+      const { score, lives, checkpoint, bridges, nextExtraLife } = this;
+      return { score, lives, checkpoint, bridges, nextExtraLife };
+    }
+
+    start() {
+      this.initializePilot();
+      this.player = 0;
+      this.players = [this.snapshotPilot()];
+      if (this.gameMode === 2) this.players.push(this.snapshotPilot());
+      this.world = this.worldFactory();
+      this.world.ensure(0);
+      this.phase = 'ready';
+      this.reason = '';
+      this.audio.stop();
+    }
+
+    action(action) {
+      if (action === 'start') {
+        if (this.phase === 'title' || this.phase === 'gameover') this.start();
+        else if (this.phase === 'ready') this.phase = 'playing';
+        else this.togglePause();
+      } else if (action === 'pause') this.togglePause();
+      else if (action === 'reset') this.start();
+      else if (action === 'difficulty') this.expert = !this.expert;
+      else if (action === 'select' || action === 'select1' || action === 'select2') {
+        this.gameMode = action === 'select1' ? 1 : action === 'select2' ? 2 : 3 - this.gameMode;
+        this.start();
+      }
+    }
+
+    togglePause() {
+      if (this.phase === 'paused') this.phase = this.previousPhase;
+      else if (['playing', 'ready', 'dying'].includes(this.phase)) {
+        this.previousPhase = this.phase;
+        this.phase = 'paused';
+        this.audio.stop();
+      }
+    }
+
+    scorePoints(points) {
+      this.score = Math.min(1000000, this.score + points);
+      while (this.score >= this.nextExtraLife) {
+        this.nextExtraLife += 10000;
+        this.lives = Math.min(10, this.lives + 1);
+        this.audio.extraLife();
+      }
+      if (this.score > this.highScore) {
+        this.highScore = this.score;
+        this.onScore(this.score);
+      }
+    }
+
+    hit(entity) {
+      if (!entity.alive) return;
+      entity.alive = false;
+      this.scorePoints(C.SCORES[entity.type]);
+      this.effects.push({ x: entity.x, d: entity.d, age: 0, bridge: entity.type === 'bridge' });
+      if (entity.type === 'bridge') {
+        // Destroying the bridge establishes the next restart point immediately,
+        // even if the pilot crashes before actually flying over the road.
+        this.checkpoint = Math.max(this.checkpoint, entity.checkpoint || entity.d + 28);
+        this.bridges = Math.max(this.bridges, entity.section || this.bridges + 1);
+        this.audio.bridge();
+      } else this.audio.explode();
+    }
+
+    die(reason) {
+      if (this.phase !== 'playing') return;
+      this.phase = 'dying';
+      this.reason = reason;
+      this.deathTimer = T.deathTime;
+      this.lives = Math.max(0, this.lives - 1);
+      this.bullets = [];
+      this.refueling = false;
+      this.audio.stop();
+      this.audio.explode();
+    }
+
+    resumeLife() {
+      this.players[this.player] = this.snapshotPilot();
+      if (this.gameMode === 2) {
+        const other = 1 - this.player;
+        if (this.players[other].lives > 0) this.player = other;
+      }
+      const pilot = this.players[this.player];
+      if (!pilot || pilot.lives === 0) {
+        this.phase = 'gameover';
+        this.startArmed = false;
+        this.audio.stop();
+        return;
+      }
+      Object.assign(this, pilot);
+      this.distance = this.checkpoint;
+      this.world = this.worldFactory();
+      this.world.ensure(this.distance);
+      const banks = this.world.banks(this.distance);
+      this.x = (banks.left + banks.right) / 2;
+      if (banks.islands.some(i => this.x > i.left - 5 && this.x < i.right + 5)) {
+        this.x = (banks.left + banks.islands[0].left) / 2;
+      }
+      this.fuel = 100;
+      this.speed = T.cruiseSpeed;
+      this.bullets = [];
+      this.effects = [];
+      this.fireTimer = 0;
+      this.refueling = false;
+      this.phase = 'ready';
+    }
+
+    onLand(x, d, halfWidth = 0) {
+      const banks = this.world.banks(d);
+      if (x - halfWidth < banks.left || x + halfWidth > banks.right) return true;
+      return banks.islands.some(i => x + halfWidth > i.left && x - halfWidth < i.right);
+    }
+
+    step(dt, input = {}) {
+      if (!Number.isFinite(dt) || dt <= 0 || this.phase === 'paused') return;
+      // Read the current input in every substep: no deferred keyboard frame.
+      while (dt > 1e-8) {
+        const part = Math.min(dt, 1 / 120);
+        this.advance(part, input);
+        dt -= part;
+      }
+    }
+
+    advance(dt, input) {
+      this.time += dt;
+      if (this.phase === 'title' || this.phase === 'gameover') {
+        if (!input.fire) this.startArmed = true;
+        if (input.fire && this.startArmed) this.start();
+        else return;
+      }
+      if (this.phase === 'ready') {
+        if (!controls.some(key => input[key])) return;
+        this.phase = 'playing';
+      }
+      if (this.phase === 'dying') {
+        this.deathTimer -= dt;
+        if (this.deathTimer <= 0) this.resumeLife();
+        return;
+      }
+      if (this.phase !== 'playing') return;
+
+      const target = input.up && !input.down ? T.maxSpeed : input.down && !input.up ? T.minSpeed : T.cruiseSpeed;
+      this.speed += clamp(target - this.speed, -T.acceleration * dt, T.acceleration * dt);
+      this.distance += this.speed * dt;
+      this.world.ensure(this.distance);
+      const oldX = this.x;
+      const direction = Number(!!input.right) - Number(!!input.left);
+      this.x = clamp(this.x + direction * T.steerSpeed * dt, 4, C.W - 4);
+      this.bank = direction;
+      this.fireTimer = Math.max(0, this.fireTimer - dt);
+
+      for (const entity of this.world.entities) {
+        if (!entity.alive || !entity.speed || Math.abs(entity.d - this.distance) > C.H + 40) continue;
+        entity.x += entity.dir * entity.speed * dt;
+        const banks = this.world.banks(entity.d);
+        const half = entity.width / 2;
+        // Aircraft cross the banks; boats and helicopters patrol their channel.
+        if (entity.type === 'jet') {
+          if (entity.x < -half) entity.x = C.W + half;
+          if (entity.x > C.W + half) entity.x = -half;
+        } else {
+          let left = banks.left + half, right = banks.right - half;
+          for (const island of banks.islands) {
+            if (entity.x < (island.left + island.right) / 2) right = Math.min(right, island.left - half);
+            else left = Math.max(left, island.right + half);
+          }
+          if (entity.x <= left || entity.x >= right) {
+            entity.x = clamp(entity.x, left, right);
+            entity.dir *= -1;
+          }
+        }
+      }
+
+      if (input.fire && this.fireTimer <= 0 && this.bullets.length === 0) {
+        this.bullets.push({ x: this.x, d: this.distance + 7 });
+        this.fireTimer = T.fireInterval;
+        this.audio.shot();
+      }
+      for (const bullet of this.bullets) {
+        if (!this.expert) bullet.x += this.x - oldX;
+        const start = bullet.d;
+        bullet.d += (T.bulletSpeed + this.speed) * dt;
+        // Resolve the nearest target first, so a single missile cannot pass
+        // through a tanker and destroy another object behind it.
+        const targets = this.world.entities.filter(e => e.alive &&
+          e.d + e.height / 2 >= start - 2 && e.d - e.height / 2 <= bullet.d + 2 &&
+          (e.type === 'bridge' || Math.abs(e.x - bullet.x) <= e.width / 2 + 0.5));
+        targets.sort((a, b) => a.d - b.d);
+        if (targets.length) {
+          const target = targets[0];
+          // An island or bank between the missile and a target blocks the shot.
+          let blocked = false;
+          for (let d = start; d <= Math.min(bullet.d, target.d); d += 1) {
+            if (this.onLand(bullet.x, d)) { blocked = true; break; }
+          }
+          if (!blocked) this.hit(target);
+          bullet.dead = true;
+        } else {
+          for (let d = start; d <= bullet.d; d += 1) {
+            if (this.onLand(bullet.x, d)) { bullet.dead = true; break; }
+          }
+        }
+        if (bullet.d > this.distance + C.PLANE_Y + 6) bullet.dead = true;
+      }
+      this.bullets = this.bullets.filter(b => !b.dead);
+
+      this.refueling = false;
+      for (const entity of this.world.entities) {
+        if (!entity.alive || Math.abs(entity.d - this.distance) > entity.height / 2 + 5) continue;
+        if (entity.type === 'bridge') {
+          this.die('ponte');
+          return;
+        }
+        if (Math.abs(entity.x - this.x) > entity.width / 2 + 3) continue;
+        if (entity.type === 'fuel') this.refueling = true;
+        else { this.die('colisão'); return; }
+      }
+
+      // The sprite tapers at the nose and tail. Checking individual occupied
+      // pixels lets a pilot skim the riverbank without a rectangular hitbox.
+      const plane = RR.Sprites.plane;
+      for (let y = 0; y < plane.length; y++) {
+        for (let x = 0; x < plane[y].length; x++) {
+          if (plane[y][x] !== '0' && plane[y][x] !== '.' && plane[y][x] !== ' ' &&
+            this.onLand(this.x + x - plane[y].length / 2 + 0.5, this.distance + plane.length / 2 - y - 0.5)) {
+            this.die('margem');
+            return;
+          }
+        }
+      }
+
+      this.fuel = clamp(this.fuel + (this.refueling ? T.refuelRate : 0) * dt - T.fuelDrain * dt, 0, 100);
+      if (this.fuel <= 0) { this.die('combustível'); return; }
+      this.audio.refuel(this.refueling);
+      this.audio.engine(this.speed / T.maxSpeed, this.fuel, true);
+      for (const effect of this.effects) effect.age += dt;
+      this.effects = this.effects.filter(e => e.age < 0.35);
+    }
+  }
+
+  RR.Game = Game;
+
+  RR.boot = function () {
+    const canvas = document.getElementById('screen');
+    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+    const frame = document.createElement('canvas');
+    frame.width = C.W;
+    frame.height = C.H;
+    const g = frame.getContext('2d', { alpha: false });
+    const game = new Game({ audio: RR.Audio, onScore: saveRecord });
+    RR.game = game;
+    let muted = false, monochrome = false, last = null, statusText = '';
+    let record = 0;
+    try { record = Number(localStorage.getItem('riverraid2600.highScore')) || 0; } catch (_) { /* Storage is optional. */ }
+    game.highScore = record;
+
+    function saveRecord(score) {
+      try { localStorage.setItem('riverraid2600.highScore', String(score)); } catch (_) { /* Private browsing can deny storage. */ }
+    }
+
+    function label(id, value) {
+      const node = document.getElementById(id);
+      if (node) node.textContent = value;
+    }
+
+    function action(type) {
+      RR.Audio.unlock();
+      if (type === 'mute') {
+        muted = !muted;
+        RR.Audio.setMuted(muted);
+        label('mute-state', muted ? 'som desligado' : 'som ligado');
+        const button = document.querySelector('[data-action="mute"]');
+        if (button) button.setAttribute('aria-pressed', String(muted));
+      } else if (type === 'color') {
+        monochrome = !monochrome;
+        canvas.classList.toggle('bw', monochrome);
+        label('tv-state', monochrome ? 'TV em preto e branco' : 'TV colorida');
+        const button = document.querySelector('[data-switch="tv"]');
+        if (button) button.setAttribute('aria-pressed', String(monochrome));
+      } else if (type === 'fullscreen') {
+        const tv = document.querySelector('.tv');
+        if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+        else tv.requestFullscreen?.().catch(() => {});
+      } else {
+        game.action(type);
+        label('diff-state', game.expert ? 'A · tiros retos' : 'B · tiros guiados');
+        label('game-state', `JOGO ${game.gameMode} · ${game.gameMode === 1 ? '1 JOGADOR' : '2 JOGADORES'}`);
+        const button = document.querySelector('[data-switch="difficulty"]');
+        if (button) button.setAttribute('aria-pressed', String(game.expert));
+      }
+      syncStatus();
+    }
+    RR.Input.init(action);
+
+    function pauseOnLeave() {
+      RR.Input.clear();
+      if (game.phase === 'playing' || game.phase === 'dying') game.togglePause();
+      RR.Audio.stop();
+      last = null;
+      syncStatus();
+    }
+    window.addEventListener('blur', pauseOnLeave);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) pauseOnLeave(); });
+
+    function syncStatus() {
+      const messages = {
+        title: 'Pronto para voar. Aperte Enter ou toque em INICIAR.',
+        ready: `Jogador ${game.player + 1}. Mova o direcional ou dispare para decolar.`,
+        playing: `Jogador ${game.player + 1} em voo.`,
+        paused: 'Jogo pausado. Aperte P ou CONTINUAR para retomar.',
+        dying: game.reason === 'combustível' ? 'Combustível esgotado.' : 'Avião perdido.',
+        gameover: `Fim de jogo. Recorde: ${game.highScore}. Aperte Enter para jogar novamente.`
+      };
+      if (statusText !== messages[game.phase]) {
+        statusText = messages[game.phase];
+        label('status', statusText);
+      }
+      label('pause-button', game.phase === 'paused' ? 'CONTINUAR' : 'PAUSAR');
+      label('start-button', game.phase === 'title' || game.phase === 'gameover' ? 'INICIAR' : game.phase === 'ready' ? 'DECOLAR' : 'REINICIAR');
+      const start = document.getElementById('start-button');
+      if (start) start.setAttribute('data-action', ['title', 'gameover', 'ready'].includes(game.phase) ? 'start' : 'reset');
+      const pause = document.getElementById('pause-button');
+      if (pause) { pause.disabled = game.phase === 'title' || game.phase === 'gameover'; pause.setAttribute('aria-pressed', String(game.phase === 'paused')); }
+    }
+
+    function sprite(rows, x, y, colors, flip = false) {
+      if (!rows) return;
+      const left = Math.round(x - rows[0].length / 2), top = Math.round(y - rows.length / 2);
+      for (let row = 0; row < rows.length; row++) for (let col = 0; col < rows[row].length; col++) {
+        const pixel = rows[row][flip ? rows[row].length - 1 - col : col];
+        if (pixel === '.' || pixel === '0' || pixel === ' ') continue;
+        g.fillStyle = colors[pixel] || colors[1] || '#ffffff';
+        g.fillRect(left + col, top + row, 1, 1);
+      }
+    }
+
+    function text(value, x, y, color, scale = 1, centered = false) {
+      value = String(value).toUpperCase();
+      const font = RR.Font;
+      const width = value.length * 6 * scale - scale;
+      if (centered) x -= width / 2;
+      g.fillStyle = color;
+      for (const letter of value) {
+        const rows = font[letter] || font['?'] || font[' '];
+        if (rows) for (let row = 0; row < rows.length; row++) for (let col = 0; col < rows[row].length; col++) {
+          if (rows[row][col] === '1') g.fillRect(Math.round(x + col * scale), y + row * scale, scale, scale);
+        }
+        x += 6 * scale;
+      }
+    }
+
+    function render() {
+      const p = C.PALETTE;
+      g.fillStyle = p.water;
+      g.fillRect(0, 0, C.W, C.H);
+      for (let y = 0; y < C.PLAY_H; y++) {
+        const banks = game.world.banks(game.distance + C.PLANE_Y - y);
+        g.fillStyle = p[banks.land] || p.land;
+        g.fillRect(0, y, banks.left, 1);
+        g.fillRect(banks.right, y, C.W - banks.right, 1);
+        for (const island of banks.islands) g.fillRect(island.left, y, island.right - island.left, 1);
+      }
+      g.save();
+      g.beginPath();
+      g.rect(0, 0, C.W, C.PLAY_H);
+      g.clip();
+      for (const decoration of game.world.decorations || []) {
+        const y = C.PLANE_Y - (decoration.d - game.distance);
+        if (y < -decoration.height || y > C.PLAY_H + decoration.height) continue;
+        sprite(RR.Sprites[decoration.type], decoration.x, y, decoration.type === 'house' ?
+          { 1: p.white, 2: p.black } : { 1: p.tree, 2: '#391701' });
+      }
+      for (const entity of game.world.entities) {
+        const y = C.PLANE_Y - (entity.d - game.distance);
+        if (y < -entity.height || y > C.PLAY_H + entity.height) continue;
+        if (entity.type === 'bridge') {
+          const banks = game.world.banks(entity.d);
+          g.fillStyle = p.roadEdge;
+          g.fillRect(0, Math.round(y - 9), C.W, 18);
+          g.fillStyle = p.road;
+          g.fillRect(0, Math.round(y - 7), C.W, 14);
+          g.fillStyle = p.roadLine || '#d6d6d6';
+          g.fillRect(0, Math.round(y), C.W, 1);
+          if (!entity.alive) {
+            g.fillStyle = p.water;
+            g.fillRect(banks.left, Math.round(y - 11), banks.right - banks.left, 22);
+          } else {
+            for (let row = -11; row < 11; row++) {
+              const inset = Math.abs(row) >= 9 ? 4 : 0;
+              g.fillStyle = Math.abs(row) >= 9 ? p.bridgeEdge : Math.floor((row + 11) / 2) % 2 ? p.bridge : p.bridgeDark;
+              g.fillRect(banks.left + inset, Math.round(y + row), banks.right - banks.left - inset * 2, 1);
+            }
+          }
+        } else if (entity.alive) {
+          const colors = entity.type === 'fuel' ? { 1: p.fuel, 2: p.white, 3: p.black } :
+            entity.type === 'helicopter' ? { 1: p.helicopter, 2: p.helicopterCabin, 3: p.helicopterRotor } :
+            entity.type === 'jet' ? { 1: p.jet, 2: p.black, 3: p.white } :
+            { 1: p.tanker, 2: p.tankerDeck, 3: p.tankerHull };
+          const rows = entity.type === 'helicopter' ? RR.Sprites.helicopterFrames[Math.floor(game.time * 12) % RR.Sprites.helicopterFrames.length] : RR.Sprites[entity.type];
+          sprite(rows, entity.x, y, colors, entity.dir < 0);
+        }
+      }
+      g.fillStyle = p.plane;
+      for (const bullet of game.bullets) g.fillRect(Math.round(bullet.x), Math.round(C.PLANE_Y - (bullet.d - game.distance)), 1, 4);
+      for (const effect of game.effects) {
+        const y = C.PLANE_Y - (effect.d - game.distance);
+        const rows = RR.Sprites.explosionFrames[Math.min(2, Math.floor(effect.age / 0.12))];
+        sprite(rows, effect.x, y, { 1: '#ffcc43', 2: '#ed7632', 3: '#ffffff' });
+      }
+      if (game.phase === 'dying') {
+        const rows = RR.Sprites.explosionFrames[Math.floor((T.deathTime - game.deathTimer) * 10) % RR.Sprites.explosionFrames.length];
+        sprite(rows, game.x, C.PLANE_Y, { 1: p.explosion, 2: p.explosion2, 3: p.white });
+      } else if (game.phase !== 'gameover') {
+        const rows = game.bank < 0 ? RR.Sprites.planeLeft || RR.Sprites.plane : game.bank > 0 ? RR.Sprites.planeRight || RR.Sprites.plane : RR.Sprites.plane;
+        sprite(rows, game.x, C.PLANE_Y, { 1: game.player === 1 ? p.plane2 : p.plane, 2: p.plane });
+      }
+      g.restore();
+
+      g.fillStyle = p.hud || '#a8a8a8';
+      g.fillRect(0, C.PLAY_H, C.W, C.H - C.PLAY_H);
+      g.fillStyle = p.black;
+      g.fillRect(0, 161, C.W, 1);
+      const score = game.score === 1000000 ? '!!!!!!' : String(game.score);
+      for (let i = 0; i < score.length; i++) sprite(scoreFont[score[i]], 99 - (score.length - 1 - i) * 8, 167, { 1: p.yellow });
+      sprite(scoreFont[Math.max(0, game.lives - 1)], 60, 194, { 1: game.player === 1 ? p.plane2 : p.plane });
+      sprite(signature, 88, 194, { 1: p.yellow });
+      g.fillStyle = p.black;
+      g.fillRect(65, 173, 39, 15);
+      g.fillStyle = p.hud;
+      g.fillRect(66, 174, 37, 13);
+      g.fillStyle = p.black;
+      for (const x of [68, 82, 98]) g.fillRect(x, 174, 1, 3);
+      sprite(['1111', '1...', '1...', '111.', '1...', '1...', '1111'], 70, 182, { 1: p.black });
+      sprite(['1111', '1...', '1...', '111.', '1...', '1...', '1...'], 100, 182, { 1: p.black });
+      sprite(['.1.', '11.', '.1.', '.1.', '111'], 81, 178, { 1: p.black });
+      sprite(['111', '..1', '111', '1..', '111'], 88, 183, { 1: p.black });
+      // Analog fuel needle sweeps from E, through 1/2, to F, like the cartridge.
+      const needleTop = 69 + game.fuel * 0.3;
+      g.fillStyle = game.fuel < T.lowFuel && Math.floor(game.time * 5) % 2 ? '#b21d17' : p.black;
+      for (let row = 0; row < 9; row++) g.fillRect(Math.round(77 + (needleTop - 77) * (1 - row / 8)), 177 + row, 2, 1);
+      if (game.fuel >= 99.9) { g.fillStyle = p.yellow; g.fillRect(99, 179, 2, 8); }
+      if (game.gameMode === 2) text(`P${game.player + 1}`, 126, 181, p.black);
+
+      if (game.phase === 'title' || game.phase === 'gameover' || game.phase === 'paused' || game.phase === 'ready') {
+        const title = game.phase === 'title' ? 'RIVER RAID' : game.phase === 'gameover' ? 'FIM DE JOGO' : game.phase === 'paused' ? 'PAUSA' : `JOGADOR ${game.player + 1}`;
+        g.fillStyle = 'rgba(0,0,0,0.83)';
+        g.fillRect(13, 53, 134, game.phase === 'title' ? 56 : 42);
+        text(title, 80, 62, '#e8e84d', 1, true);
+        if (game.phase === 'title') text('CAROL SHAW - 1982', 80, 76, '#ffffff', 1, true);
+        text(game.phase === 'paused' ? 'P PARA CONTINUAR' : game.phase === 'ready' ? 'MOVA OU DISPARE' : 'ENTER OU BOTAO', 80, game.phase === 'title' ? 89 : 80, '#ffffff', 1, true);
+        if (game.phase === 'title' || game.phase === 'gameover') text(`RECORDE ${game.highScore}`, 80, game.phase === 'title' ? 100 : 92, '#d5cfb4', 0.75, true);
+      }
+
+      // Paint native pixels into physical device pixels; CSS supplies the
+      // non-square Atari aspect ratio without introducing image smoothing.
+      const rect = canvas.getBoundingClientRect();
+      const ratio = Math.min(window.devicePixelRatio || 1, 3);
+      const width = Math.max(160, Math.round(rect.width * ratio));
+      const height = Math.max(192, Math.round(rect.height * ratio));
+      if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(frame, 0, 0, width, height);
+      // One scanline per logical row, aligned to device pixels, avoids moire.
+      if (height >= C.H * 2) {
+        ctx.fillStyle = 'rgba(0,0,0,0.14)';
+        for (let y = 0; y < C.H; y++) ctx.fillRect(0, Math.floor((y + 1) * height / C.H) - 1, width, 1);
+      }
+    }
+
+    function tick(timestamp) {
+      const input = RR.Input.poll();
+      if (controls.some(key => input[key])) RR.Audio.unlock();
+      if (last !== null) game.step(Math.min((timestamp - last) / 1000, 0.06), input);
+      last = timestamp;
+      syncStatus();
+      render();
+      requestAnimationFrame(tick);
+    }
+    syncStatus();
+    render();
+    requestAnimationFrame(tick);
+  };
+})(window.RR);
+
+</script>
+  <script>window.RR.boot();</script>
+</body>
+</html>

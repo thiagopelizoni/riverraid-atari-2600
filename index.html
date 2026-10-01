@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#110e09">
+  <meta name="description" content="Uma recriação de River Raid do Atari 2600 para jogar no navegador, com teclado, controle ou toque.">
+  <title>River Raid · Atari 2600</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="marquee">
+    <p class="eyebrow">ACTIVISION · 1982 · CAROL SHAW</p>
+    <h1>RIVER RAID</h1>
+    <p class="subtitle">Uma missão. Um rio. Nenhum retorno.</p>
+    <div class="stripes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+  </header>
+
+  <main class="game-room">
+    <section class="tv" aria-label="River Raid no televisor">
+      <div class="crt">
+        <canvas id="screen" width="160" height="192" tabindex="0" aria-label="Tela de River Raid. Setas movem o avião, espaço dispara e Enter inicia."></canvas>
+      </div>
+      <div class="deck">
+        <div class="console-brand"><span class="brand">VIDEO COMPUTER SYSTEM</span><span class="model">2600</span></div>
+        <div class="switches" aria-label="Chaves do console">
+          <button id="color-switch" class="switch" data-action="color" data-switch="tv" aria-pressed="false" aria-label="Alternar TV colorida e preto e branco" title="Cor / preto e branco (C)"><span class="lever" aria-hidden="true"></span><span class="label">COR · P&amp;B</span></button>
+          <button id="difficulty-switch" class="switch" data-action="difficulty" data-switch="difficulty" aria-pressed="false" aria-label="Alternar dificuldade B e A" title="Dificuldade B / A (L)"><span class="lever" aria-hidden="true"></span><span class="label">B · A</span></button>
+          <button id="select-button" class="switch momentary" data-action="select" data-switch="select" aria-label="Selecionar jogo de um ou dois jogadores" title="Selecionar jogo (1 ou 2)"><span class="lever" aria-hidden="true"></span><span class="label">GAME SELECT</span></button>
+          <button id="reset-button" class="switch momentary" data-action="reset" data-switch="reset" aria-label="Reiniciar partida" title="Reiniciar partida (R)"><span class="lever" aria-hidden="true"></span><span class="label">GAME RESET</span></button>
+        </div>
+        <span class="led" aria-label="Console ligado"></span>
+      </div>
+    </section>
+
+    <div class="game-toolbar" aria-label="Controles da partida">
+      <button id="start-button" class="action-button primary" data-action="start">DECOLAR <span>ENTER</span></button>
+      <button id="pause-button" class="action-button" data-action="pause" aria-pressed="false">PAUSA <span>P</span></button>
+      <button id="mute-button" class="action-button" data-action="mute" aria-pressed="false" aria-label="Alternar som"><span class="sound-icon" aria-hidden="true">♪</span> SOM <span>M</span></button>
+      <button id="fullscreen-button" class="action-button" data-action="fullscreen" aria-label="Alternar tela cheia">TELA CHEIA <span>F</span></button>
+    </div>
+    <p id="status" class="game-status" role="status" aria-live="polite">Pressione Enter ou FIRE para decolar.</p>
+
+    <div id="pad" aria-label="Joystick de toque">
+      <div class="dpad" aria-label="Direção e velocidade">
+        <button class="up" data-dir="up" aria-label="Acelerar">▲</button>
+        <button class="left" data-dir="left" aria-label="Mover avião para a esquerda">◀</button>
+        <span class="dpad-center" aria-hidden="true"></span>
+        <button class="right" data-dir="right" aria-label="Mover avião para a direita">▶</button>
+        <button class="down" data-dir="down" aria-label="Desacelerar">▼</button>
+      </div>
+      <div class="fire-control"><button id="fire-button" class="fire" data-control="fire" aria-label="Manter pressionado para disparar">FIRE</button><span>SEGURE PARA ATIRAR</span></div>
+    </div>
+
+    <section class="manual" aria-labelledby="manual-title">
+      <div class="manual-heading"><h2 id="manual-title">Manual de voo</h2><span class="manual-edition">ATARI 2600</span></div>
+      <div class="manual-grid">
+        <div>
+          <h3>Assuma o manche</h3>
+          <ul>
+            <li><kbd>←</kbd> <kbd>→</kbd> ou <kbd>A</kbd> <kbd>D</kbd> movem o avião.</li>
+            <li><kbd>↑</kbd> acelera · <kbd>↓</kbd> desacelera.</li>
+            <li><kbd>ESPAÇO</kbd> / <kbd>Z</kbd> / <kbd>X</kbd> disparam.</li>
+            <li><kbd>ENTER</kbd> inicia · <kbd>P</kbd> pausa · <kbd>R</kbd> reinicia.</li>
+            <li>Controle USB/Bluetooth: manche e botão de tiro. START inicia ou pausa.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Sobreviva ao rio</h3>
+          <ul>
+            <li>Voe sobre <b>FUEL</b> para abastecer. O combustível nunca espera.</li>
+            <li>Destrua navios, helicópteros, jatos e pontes. Evite as margens e as ilhas.</li>
+            <li>Navio <b>30</b> · helicóptero <b>60</b> · jato <b>100</b> · ponte <b>500</b>.</li>
+            <li>Depósito de combustível <b>80</b>. Avião extra a cada <b>10.000</b> pontos.</li>
+            <li>Comece com um avião e três reservas. No jogo 2, os jogadores alternam a cada vida.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="console-state" aria-label="Configuração do console"><span id="game-state">Jogo 1 · um jogador</span><span id="diff-state">Dificuldade B · tiros guiados</span><span id="tv-state">TV colorida</span><span id="mute-state">Som ligado</span></div>
+    </section>
+  </main>
+  <footer>Recriação independente do clássico de Carol Shaw para o Atari 2600. Não afiliada à Activision.</footer>
+
+  <script src="js/config.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/game.js"></script>
+  <script>window.RR.boot();</script>
+</body>
+</html>
