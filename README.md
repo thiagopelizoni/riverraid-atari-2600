@@ -93,4 +93,4 @@ npm run build
 
 O jogo original foi criado por Carol Shaw e publicado pela Activision em 1982 para o Atari 2600. As referências desta versão são o [manual original](https://atariage.com/manual_html_page.php?SoftwareLabelID=409) e as capturas preservadas pelo AtariAge: [1](https://atariage.com/2600/screenshots/s_RiverRaid_1.png), [2](https://atariage.com/2600/screenshots/s_RiverRaid_2.png) e [3](https://atariage.com/2600/screenshots/s_RiverRaid_3.png).
 
-Esta versão usa sprites em bitmap, áudio sintetizado e uma tela com aspecto 4:3. O rio tem traçados próprios e geração determinística: suas posições iniciais se repetem, enquanto a dificuldade aumenta com a escassez de combustível e a velocidade dos inimigos. O mapa e a temporização são aproximações da experiência original.
+Esta versão usa sprites em bitmap, áudio sintetizado e uma tela com aspecto 4:3. O rio segue o gerador determinístico do cartucho: o mesmo LFSR de 16 bits, trechos de 16 blocos fechados por uma ponte, margens em degraus e ilhas centrais. A dificuldade sobe porque o vale pode estreitar e porque passam a surgir mais inimigos do que depósitos.

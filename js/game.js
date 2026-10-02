@@ -285,12 +285,12 @@ window.RR = window.RR || {};
 
       this.refueling = false;
       for (const entity of this.world.entities) {
-        if (!entity.alive || Math.abs(entity.d - this.distance) > entity.height / 2 + 5) continue;
+        if (!entity.alive || Math.abs(entity.d - this.distance) > entity.height / 2 + 2) continue;
         if (entity.type === 'bridge') {
           this.die('ponte');
           return;
         }
-        if (Math.abs(entity.x - this.x) > entity.width / 2 + 3) continue;
+        if (Math.abs(entity.x - this.x) > entity.width / 2) continue;
         if (entity.type === 'fuel') this.refueling = true;
         else { this.die('colisão'); return; }
       }

@@ -230,8 +230,8 @@ window.RR.Config = (function () {
   const PALETTE = {
     water: '#584FDA',
     river: '#584FDA',
-    land: '#649228',
-    landDark: '#0C4A1C',
+    land: '#3EAE2C',
+    landDark: '#1A7418',
     hud: '#ABABAB',
     black: '#000000',
     yellow: '#FFF456',
@@ -241,15 +241,15 @@ window.RR.Config = (function () {
     brand: '#FFF456',
     plane2: '#000000',
     white: '#F2F2F2',
-    fuel: '#EA51EB',
+    fuel: '#D03030',
     fuelRed: '#F2F2F2',
-    tanker: '#B21D17',
+    tanker: '#6868D8',
     tankerDeck: '#000000',
-    tankerHull: '#61D070',
-    helicopter: '#0A4108',
-    helicopterCabin: '#0C048B',
-    helicopterRotor: '#FFC545',
-    jet: '#FFF456',
+    tankerHull: '#D06028',
+    helicopter: '#3EC8C8',
+    helicopterCabin: '#3030A0',
+    helicopterRotor: '#E87820',
+    jet: '#7C80F0',
     road: '#CDCDCD',
     roadEdge: '#797979',
     roadLine: '#FFF456',
@@ -276,7 +276,7 @@ window.RR.Config = (function () {
     maxReserves: 9,
     extraJetScore: 10000,
     lowFuel: 25,
-    sectionLength: 700,
+    sectionLength: 1024,
   };
 
   const SCORES = { tanker: 30, helicopter: 60, fuel: 80, jet: 100, bridge: 500 };
@@ -403,15 +403,14 @@ window.RR.Sprites = (function () {
     '22...22',
     '2222222',
   ];
+  // Enemy jet is one 8-bit player graphic (PlaneA/PlaneB), not a double-wide sprite.
   const jet = [
-    '......11........',
-    '.....111........',
-    '..1..111........',
-    '.1111111111111..',
-    '1111111111111111',
-    '.1111111111111..',
-    '..1..111........',
-    '......11........',
+    '..11....',
+    '.1111...',
+    '11111111',
+    '1..1111.',
+    '11...11.',
+    '1.......',
   ];
   const explosion = [
     [
@@ -552,203 +551,412 @@ window.RR = window.RR || {};
 window.RR.World = (function () {
   'use strict';
 
-  const LENGTH = 700;
-  const DIMENSIONS = {
-    tanker: [16, 8], helicopter: [8, 10], fuel: [7, 24], jet: [16, 8], bridge: [32, 22],
-  };
+  // Cartridge geography (River Raid, Thomas Jentzsch disassembly):
+  // 16-bit LFSR seeded $A814, 16 blocks per section, 32 lines per half-block,
+  // last half-block is the bridge. Odd levels are straight (pattern 7, bright
+  // green $D6). Even levels bend and grow islands (darker green $D2). COLUBK
+  // stays blue; COLUPF is the bank. PF0 is always land, so the channel cannot
+  // collapse into a black screen.
+  const ORIGIN = 64;
+  const BLOCK = 32;
+  const SECTION = 1024;
+  const BANK = [0x00, 0xa1, 0x91, 0x7f, 0x6b, 0x55, 0x3d, 0x23, 0x07, 0xa9, 0x90, 0x75, 0x58, 0x39, 0x18];
+  const SHAPE_POS = [143, 141, 7, 10, 132, 13, 128, 18, 124, 22, 120, 26, 116, 30, 112];
+  const ENEMY = [7, 5, 7, 5, 4, 7, 5, 5];
+  const PAGE_FLAG = [0, 2, 1, 3];
+  const ID = { plane: 4, heli: 5, ship: 7, house: 9, fuel: 10 };
+  const NEAR_TO_FAR = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 0, 0];
+  const SIZE = { tanker: [16, 8], helicopter: [8, 10], fuel: [7, 24], jet: [8, 6], bridge: [32, 22], house: [14, 7] };
+  const PAGE_FC = page('000000000000000000000000000000000000000103070f1f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f1f0f07030100000000000000000103070f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f0f07030100000000000000000103070f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f07030100000000000000000103070707070707070707070707070707070301000000000000000001030303030303030303030303030303030100000000000000000101010101010101010101010101010100000000000000002a3e1c08496b7f7f3e1c08080800000000022e3c18080a2e3e3e3c180808080000000000020810004008214410040800000000000000000000000000000000');
+  const PAGE_FD = page('80c0e0f0f8fcfefffffffffffffffffffffffffffffffffefcf8f0e0c080c0e0f0f8fcfefefefefefefefefefefefefefefefefcf8f0e0c080c0e0f0f8fcfcfcfcfcfcfcfcfcfcfcfcfcfcfcfcf8f0e0c080c0e0f0f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f0e0c080c0e0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0e0c080c0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0c080c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c08080808080808080808080808080808000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000');
 
-  // Half-widths are authored at landmarks, then quantized to four Atari pixels.
-  // Mirrored banks and central islands reproduce the reflected 2600 playfield.
-  const COURSES = [
-    {
-      banks: [[0, 16], [44, 16], [66, 36], [172, 36], [252, 52], [340, 52], [412, 48], [508, 40], [570, 36], [640, 16], [700, 16]],
-      islands: [[360, 504, 12]],
-    },
-    {
-      banks: [[0, 16], [48, 16], [136, 56], [216, 64], [368, 56], [432, 64], [528, 40], [644, 16], [700, 16]],
-      islands: [[144, 508, 32]],
-    },
-    {
-      banks: [[0, 16], [44, 16], [116, 40], [216, 52], [300, 52], [376, 36], [464, 44], [544, 44], [640, 16], [700, 16]],
-      islands: [[184, 324, 24], [400, 536, 20]],
-    },
-    {
-      banks: [[0, 16], [48, 16], [144, 48], [228, 56], [320, 64], [412, 56], [504, 36], [584, 32], [640, 16], [700, 16]],
-      islands: [[172, 484, 32]],
-    },
-    {
-      banks: [[0, 16], [48, 16], [144, 40], [232, 48], [320, 36], [408, 52], [492, 48], [568, 36], [640, 16], [700, 16]],
-      islands: [[180, 284, 20], [368, 532, 24]],
-    },
-  ];
-
-  function randomFor(seed, section, salt) {
-    let n = (seed ^ Math.imul(section + 1, 0x9E3779B9) ^ Math.imul(salt + 1, 0x85EBCA6B)) >>> 0;
-    n ^= n << 13;
-    n ^= n >>> 17;
-    n ^= n << 5;
-    return (n >>> 0) / 4294967296;
+  function page(hex) {
+    const bytes = [];
+    for (let i = 0; i < hex.length; i += 2) bytes.push(parseInt(hex.slice(i, i + 2), 16));
+    return bytes;
   }
 
-  function sectionAt(distance) { return Math.max(0, Math.floor(distance / LENGTH)); }
-
-  function interpolate(knots, distance) {
-    for (let i = 1; i < knots.length; i++) {
-      if (distance <= knots[i][0]) {
-        const previous = knots[i - 1], next = knots[i];
-        const fraction = Math.max(0, (distance - previous[0]) / (next[0] - previous[0]));
-        return previous[1] + (next[1] - previous[1]) * fraction;
-      }
-    }
-    return knots[knots.length - 1][1];
+  function asl(a) { return { a: (a << 1) & 0xff, c: (a >> 7) & 1 }; }
+  function rol(value, c) { return { a: ((value << 1) | c) & 0xff, c: (value >> 7) & 1 }; }
+  function sbc(a, value, c) {
+    const result = a - value - (1 - c);
+    return { a: result & 0xff, c: result >= 0 ? 1 : 0 };
+  }
+  function adc(a, value, c) {
+    const result = a + value + c;
+    return { a: result & 0xff, c: result > 255 ? 1 : 0 };
   }
 
-  function create(seed) {
-    seed = Number.isFinite(seed) ? seed >>> 0 : 1982;
+  function patternByte(pageBit, low, y) {
+    const address = (pageBit ? 256 : 0) + low + y;
+    if (address < 256) return PAGE_FC[address];
+    if (address < 512) return PAGE_FD[address - 256];
+    return 0;
+  }
+
+  function create() {
+    let randomLo = 0x14;
+    let randomHi = 0xa8;
+    let level = 1;
+    let sectionBlock = 17;
+    let blockPart = 1;
+    let patternId = 12;
+    let playfieldState = 0;
+    let colorFlag = 1;
+    const blocks = [];
     const entities = [];
     const decorations = [];
-    const generated = new Set();
-    const cache = new Map();
+    const materialized = new Set();
 
-    function course(section) {
-      if (!cache.has(section)) {
-        const index = section < COURSES.length ? section : 1 + Math.floor(randomFor(seed, section, 0) * (COURSES.length - 1));
-        cache.set(section, COURSES[index]);
+    function nextRandom16() {
+      let a = randomHi;
+      let c;
+      ({ a, c } = asl(a));
+      ({ a, c } = asl(a));
+      ({ a, c } = asl(a));
+      a = (a ^ randomHi) & 0xff;
+      ({ a, c } = asl(a));
+      ({ a: randomLo, c } = rol(randomLo, c));
+      ({ a: randomHi, c } = rol(randomHi, c));
+    }
+
+    function getPageFlag(x) {
+      if (x === 0 || x >= 9) return 0;
+      return 1;
+    }
+
+    function wideBank(x, diff, flags) {
+      const page = ((getPageFlag(x) << 1) | 1) & 0xff;
+      const loaded = loadPFPattern(page, x, diff, flags);
+      return { flags: loaded.flags, pf1: 7, pf2: loaded.pf2 };
+    }
+
+    function loadPFPattern(a, x, diff, flags) {
+      if (playfieldState & 0x80) a = PAGE_FLAG[a & 3];
+      flags = (flags | a) & 0xff;
+      return { flags: flags, pf2: (BANK[x] + diff) & 0xff, a: (BANK[x] + diff) & 0xff };
+    }
+
+    function buildPatterns(prevId, flags) {
+      let c = 1;
+      let a = prevId;
+      let x = prevId;
+      ({ a, c } = sbc(a, patternId, c));
+      let diff = a;
+      let pf1 = 0;
+      let pf2 = 0;
+      if (c === 0) {
+        diff = (diff + 1) & 0xff;
+        const prevBig = x >= 8;
+        x = patternId;
+        if (prevBig) {
+          ({ flags, pf1, pf2 } = wideBank(x, diff, flags));
+        } else if (x < 9) {
+          ({ flags, pf2, a } = loadPFPattern(getPageFlag(x), x, diff, flags));
+          pf1 = a;
+          pf2 = 0;
+        } else {
+          a = adc(0xff, prevId, 1).a;
+          if (a < 0x80) {
+            pf1 = a;
+            a = ((getPageFlag(x) << 1) | 1) & 0xff;
+            ({ flags, pf2 } = loadPFPattern(a, x, diff, flags));
+          } else {
+            ({ flags, pf1, pf2 } = wideBank(x, diff, flags));
+          }
+        }
+      } else {
+        if (a !== 0) diff = (diff - 1) & 0xff;
+        if (x >= 9) {
+          if (patternId >= 8) {
+            ({ flags, pf1, pf2 } = wideBank(x, diff, flags));
+          } else {
+            ({ a } = sbc(15, patternId, 0));
+            pf1 = a;
+            a = ((getPageFlag(x) << 1) | 1) & 0xff;
+            ({ flags, pf2 } = loadPFPattern(a, x, diff, flags));
+          }
+        } else {
+          ({ flags, pf2, a } = loadPFPattern(getPageFlag(x), x, diff, flags));
+          pf1 = a;
+          pf2 = 0;
+        }
       }
-      return cache.get(section);
-    }
-
-    function banks(distance) {
-      const section = sectionAt(distance);
-      const offset = Math.max(0, distance - section * LENGTH);
-      const layout = course(section);
-      const halfWidth = Math.max(16, Math.round(interpolate(layout.banks, offset) / 4) * 4);
-      const islands = [];
-      for (const island of layout.islands) {
-        if (offset <= island[0] || offset >= island[1]) continue;
-        const taper = Math.min(1, (offset - island[0]) / 44, (island[1] - offset) / 44);
-        const halfIsland = Math.floor(Math.min(island[2] * taper, halfWidth - 20) / 4) * 4;
-        if (halfIsland >= 4) islands.push({ left: 80 - halfIsland, right: 80 + halfIsland });
+      if (playfieldState & 0x80) {
+        const swap = pf1;
+        pf1 = pf2;
+        pf2 = swap;
       }
-      return {
-        left: 80 - halfWidth,
-        right: 80 + halfWidth,
-        islands: islands,
-        land: section % 2 || islands.length ? 'landDark' : 'land',
-        section: section,
-      };
+      return { flags: flags, pf1: pf1, pf2: pf2 };
     }
 
-    function channels(distance, height) {
-      // Intersect the water at the nose, center and tail of an object.
-      const samples = [-height / 2, 0, height / 2].map(function (offset) { return banks(distance + offset); });
-      const left = Math.max.apply(null, samples.map(function (b) { return b.left; }));
-      const right = Math.min.apply(null, samples.map(function (b) { return b.right; }));
-      const islandLeft = samples.reduce(function (n, b) { return b.islands.length ? Math.min(n, b.islands[0].left) : n; }, right);
-      const islandRight = samples.reduce(function (n, b) { return b.islands.length ? Math.max(n, b.islands[0].right) : n; }, left);
-      return islandRight > islandLeft ? [[left, islandLeft], [islandRight, right]] : [[left, right]];
+    function chooseId(valleyWidth) {
+      if (sectionBlock === 1) {
+        playfieldState = 0;
+        patternId = 12;
+        return;
+      }
+      if (level & 1) {
+        patternId = 7;
+        return;
+      }
+      if (sectionBlock === 2) {
+        if (playfieldState === 0xc0) {
+          playfieldState = 0x80;
+          patternId = 0;
+          return;
+        }
+        playfieldState = 0;
+      } else {
+        const mixed = (((playfieldState << 1) ^ playfieldState) & 0x80) !== 0;
+        if (mixed) playfieldState = (playfieldState & 0x40) ? 0xc0 : 0;
+        else if ((randomLo & 0x30) === 0) {
+          if (playfieldState & 0x80) {
+            playfieldState = 0x80;
+            patternId = 0;
+            return;
+          }
+          playfieldState = 0x40;
+          patternId = 0;
+          return;
+        }
+      }
+      let max = 14;
+      let a = randomLo & 0x0f;
+      if (a < 2) a += 2;
+      if (playfieldState & 0x80) max = 13;
+      if (valleyWidth) max = 8;
+      if (a > max) a = max;
+      patternId = a;
     }
 
-    function add(type, offset, section, salt, lane) {
-      const dimensions = DIMENSIONS[type];
-      const d = section * LENGTH + offset;
-      const intervals = channels(d, dimensions[1]);
-      const channel = intervals[Math.min(intervals.length - 1, lane === undefined ? Math.floor(randomFor(seed, section, salt) * intervals.length) : lane)];
-      const margin = dimensions[0] / 2 + 2;
-      const left = channel[0] + margin, right = channel[1] - margin;
-      const x = type === 'bridge' ? 80 : Math.round(left + (right - left) * (0.2 + 0.6 * randomFor(seed, section, salt + 99)));
-      const moving = type === 'tanker' || type === 'helicopter';
-      const speed = type === 'jet' ? 40 + Math.min(35, section * 1.4) : moving ? 5 + Math.min(16, section * 1.1) + randomFor(seed, section, salt + 55) * 4 : 0;
-      entities.push({
-        id: section + ':' + type + ':' + salt,
-        type: type,
-        x: x,
-        baseX: x,
-        d: d,
-        width: dimensions[0],
-        height: dimensions[1],
-        dir: randomFor(seed, section, salt + 2) < 0.5 ? -1 : 1,
-        speed: speed,
-        alive: true,
-        section: section + 1,
-        checkpoint: type === 'bridge' ? d + 28 : undefined,
+    function spawn(flags, valleyWidth, prevId) {
+      if (flags & 0x80) return { type: 'bridge', x: 63, dir: 1 };
+      let type = 'fuel';
+      let id = ID.fuel;
+      let state = 0;
+      if (((sectionBlock + blockPart) & 0xff) >= 18) {
+        type = 'house';
+        id = ID.house;
+        state = 5;
+      } else {
+        const threshold = ((63 - level) << 1) & 0xff;
+        if (randomHi > threshold) {
+          id = ENEMY[randomHi & (level >= 3 ? 7 : 1)];
+          type = id === ID.plane ? 'jet' : id === ID.ship ? 'tanker' : 'helicopter';
+          if (id === ID.ship) state = 5;
+        } else if ((randomLo & 0x40) === 0) {
+          type = 'fuel';
+        } else {
+          type = 'house';
+          id = ID.house;
+          state = 5;
+        }
+      }
+      let c = 1;
+      let a = 0;
+      if (type === 'house') {
+        const smaller = Math.min(patternId, prevId);
+        if (level & 1) {
+          a = randomLo & 0x1f;
+          ({ a } = adc(a, 8, 0));
+          if (a >= 25) ({ a } = adc(a, 92, 1));
+        } else {
+          a = SHAPE_POS[smaller] || 0;
+          if ((playfieldState & 0x80) && smaller !== 0) a = 71;
+        }
+        return { type: type, x: a, dir: 1 };
+      }
+      if (patternId === prevId && (level & 1)) {
+        a = state ? 106 : 97;
+        ({ a, c } = sbc(a, valleyWidth, 1));
+        const temp = a;
+        a = randomLo & 0x3f;
+        ({ a, c } = adc(a, 45, 0));
+        ({ a, c } = adc(a, valleyWidth, c));
+        if (a >= temp) a = temp;
+        return { type: type, x: a, dir: type === 'fuel' || (randomLo & 0x80) === 0 ? 1 : -1 };
+      }
+      let maxId = Math.max(patternId, prevId);
+      const limit = (playfieldState & 0x80) ? 10 : 13;
+      if (maxId > limit && id === ID.ship) {
+        type = 'helicopter';
+        id = 6;
+        state = 0;
+      }
+      a = maxId;
+      ({ a, c } = asl(a));
+      ({ a, c } = asl(a));
+      if (a !== 0 && (playfieldState & 0x80)) {
+        a ^= 0xff;
+        ({ a, c } = adc(a, 81, c));
+        if (randomLo & 0x80) {
+          a ^= 0xff;
+          ({ a, c } = adc(a, 160, c));
+          ({ a, c } = adc(a, 2, 0));
+          ({ a, c } = adc(a, valleyWidth, c));
+          return { type: type, x: a, dir: 1 };
+        }
+      } else {
+        ({ a, c } = adc(a, 16, c));
+        if ((randomLo & 0x80) === 0) {
+          ({ a, c } = adc(a, 2, 0));
+          ({ a, c } = adc(a, valleyWidth, c));
+          return { type: type, x: a, dir: 1 };
+        }
+        a ^= 0xff;
+        ({ a, c } = adc(a, 161, c));
+      }
+      c = id >= ID.fuel ? 1 : 0;
+      ({ a, c } = sbc(a, 9, c));
+      ({ a, c } = sbc(a, valleyWidth, c));
+      if (state) ({ a, c } = sbc(a, 10, c));
+      return { type: type, x: a, dir: type === 'fuel' ? 1 : -1 };
+    }
+
+    function createBlock() {
+      const valleyWidth = level < 5 ? 6 : 0;
+      let flags = colorFlag ? 4 : 0;
+      const prevId = patternId;
+      blockPart = (blockPart - 1) & 0xff;
+      if (blockPart !== 0) {
+        if (sectionBlock === 1) flags = (level & 1) ? 0x80 : 0x84;
+        nextRandom16();
+      } else {
+        sectionBlock = (sectionBlock - 1) & 0xff;
+        if (sectionBlock === 0) {
+          if (level >= 48) level = 46;
+          level += 1;
+          sectionBlock = 16;
+        }
+        nextRandom16();
+        chooseId(valleyWidth);
+        blockPart = 2;
+      }
+      const built = buildPatterns(prevId, flags);
+      flags = built.flags;
+      colorFlag = flags & 4 ? 1 : 0;
+      blocks.push({
+        level: level,
+        flags: flags,
+        pf1: built.pf1,
+        pf2: built.pf2,
+        object: spawn(flags, valleyWidth, prevId),
       });
     }
 
-    function decorate(section) {
-      for (const offset of [140, 560]) {
-        const d = section * LENGTH + offset;
-        const b = banks(d);
-        const side = randomFor(seed, section, offset) < 0.5 ? -1 : 1;
-        const x = side < 0 ? b.left - 15 : b.right + 15;
-        if (x < 8 || x > 152) continue;
-        decorations.push({ id: section + ':house:' + offset, type: 'house', x: x, d: d, width: 14, height: 7 });
-        decorations.push({ id: section + ':tree:' + offset, type: 'tree', x: x + side * 4, d: d - 13, width: 10, height: 6 });
-      }
+    function ensureBlock(index) {
+      while (blocks.length <= index) createBlock();
     }
 
-    function generate(section) {
-      if (generated.has(section)) return;
-      generated.add(section);
-      if (section === 0) {
-        // The opening tableau follows the cartridge's SELECT screenshot:
-        // cleared starter bridge, centered tanker, right fuel, left helicopter.
-        entities.push({ id: 'starter', type: 'bridge', x: 80, baseX: 80, d: 4, width: 32, height: 22, dir: 1, speed: 0, alive: false, section: 0, checkpoint: 0, starter: true });
-        add('tanker', 66, section, 0);
-        entities[entities.length - 1].x = entities[entities.length - 1].baseX = 80;
-        add('fuel', 101, section, 1);
-        entities[entities.length - 1].x = entities[entities.length - 1].baseX = 94;
-        add('helicopter', 132, section, 2);
-        entities[entities.length - 1].x = entities[entities.length - 1].baseX = 70;
-        add('fuel', 292, section, 9);
-        add('tanker', 348, section, 3);
-        add('fuel', 438, section, 4, 0);
-        add('helicopter', 516, section, 5);
-        add('fuel', 574, section, 6);
-        add('tanker', 628, section, 7);
-      } else {
-        const positions = [126, 208, 292, 374, 458, 548, 618];
-        const fuelSlots = section < 4 ? [2, 5] : [section % 2 ? 2 : 4];
-        positions.forEach(function (offset, index) {
-          if (fuelSlots.indexOf(index) >= 0) {
-            add('fuel', offset, section, index, section % 2);
-          } else {
-            const jetSlot = section >= 2 && index === (section % 2 ? 1 : 4);
-            add(jetSlot ? 'jet' : index % 2 ? 'helicopter' : 'tanker', offset, section, index);
-          }
-        });
+    function banks(distance) {
+      const timeline = Math.max(0, distance + ORIGIN);
+      const index = Math.floor(timeline / BLOCK);
+      const line = Math.floor(timeline) - index * BLOCK;
+      ensureBlock(index);
+      const block = blocks[index];
+      const y = NEAR_TO_FAR[line] || 0;
+      const pf1 = patternByte(block.flags & 1, block.pf1, y);
+      const pf2 = patternByte(block.flags & 2, block.pf2, y);
+      const bits = [1, 1, 1, 1];
+      for (let i = 7; i >= 0; i--) bits.push((pf1 >> i) & 1);
+      for (let i = 0; i < 8; i++) bits.push((pf2 >> i) & 1);
+      const leftSide = bits.slice();
+      for (let i = 19; i >= 0; i--) bits.push(leftSide[i]);
+      let first = bits.indexOf(0);
+      let last = bits.lastIndexOf(0);
+      if (first < 0) { first = 8; last = 31; }
+      const islands = [];
+      if ((block.flags & 0x80) === 0) {
+        for (let i = first; i <= last; i++) {
+          if (bits[i] !== 1) continue;
+          const start = i;
+          while (i <= last && bits[i] === 1) i++;
+          islands.push({ left: start * 4, right: i * 4 });
+          i--;
+        }
       }
-      add('bridge', LENGTH, section, 8);
-      decorate(section);
+      return {
+        left: first * 4,
+        right: (last + 1) * 4,
+        islands: islands,
+        land: block.flags & 4 ? 'land' : 'landDark',
+        section: block.level - 1,
+        bridge: (block.flags & 0x80) !== 0,
+      };
+    }
+
+    function materialize(index) {
+      if (materialized.has(index)) return;
+      materialized.add(index);
+      ensureBlock(index);
+      const block = blocks[index];
+      const object = block.object;
+      const size = SIZE[object.type];
+      const d = index * BLOCK + 16 - ORIGIN;
+      const center = object.type === 'bridge' ? 80 : object.x + (object.type === 'tanker' || object.type === 'house' ? 8 : 4);
+      if (object.type === 'house') {
+        decorations.push({ id: index + ':house', type: 'house', x: center, d: d, width: size[0], height: size[1] });
+        return;
+      }
+      const moving = object.type === 'tanker' || object.type === 'helicopter';
+      entities.push({
+        id: index + ':' + object.type,
+        type: object.type,
+        x: center,
+        baseX: center,
+        d: d,
+        width: size[0],
+        height: size[1],
+        dir: object.dir,
+        speed: object.type === 'jet' ? 60 : moving && block.level > 1 ? 30 : 0,
+        alive: true,
+        section: block.level,
+        checkpoint: object.type === 'bridge' ? (index + 1) * BLOCK - ORIGIN : undefined,
+      });
     }
 
     function ensure(distance) {
       if (!Number.isFinite(distance)) return;
-      const first = sectionAt(distance - 180);
-      const last = sectionAt(distance + 350);
-      for (let section = first; section <= last; section++) generate(section);
-      // A fresh world can jump directly to any checkpoint without replaying all
-      // previous sections. Discard old scenery so an endless raid stays bounded.
-      for (let i = entities.length - 1; i >= 0; i--) if (entities[i].d < distance - 180 || entities[i].d > (last + 1) * LENGTH) entities.splice(i, 1);
-      for (let i = decorations.length - 1; i >= 0; i--) if (decorations[i].d < distance - 180 || decorations[i].d > (last + 1) * LENGTH) decorations.splice(i, 1);
-      for (const section of generated) if (section < first || section > last) generated.delete(section);
-      for (const section of cache.keys()) if (section < first - 1 || section > last + 1) cache.delete(section);
+      const first = Math.floor((distance - 180 + ORIGIN) / BLOCK);
+      const last = Math.floor((distance + 400 + ORIGIN) / BLOCK);
+      for (let index = Math.max(0, first); index <= last; index++) materialize(index);
+      for (let i = entities.length - 1; i >= 0; i--) {
+        if (entities[i].d < distance - 220 || entities[i].d > distance + 480) entities.splice(i, 1);
+      }
+      for (let i = decorations.length - 1; i >= 0; i--) {
+        if (decorations[i].d < distance - 220 || decorations[i].d > distance + 480) decorations.splice(i, 1);
+      }
+      for (const index of materialized) {
+        const d = index * BLOCK - ORIGIN;
+        if (d < distance - 220 || d > distance + 480) materialized.delete(index);
+      }
     }
 
     function checkpointBefore(distance) {
-      const bridge = Math.max(0, Math.floor((distance - 28) / LENGTH));
-      return bridge ? bridge * LENGTH + 28 : 0;
+      const index = Math.floor((distance + ORIGIN) / BLOCK);
+      for (let i = index; i >= 0; i--) {
+        ensureBlock(i);
+        if ((blocks[i].flags & 0x80) && (i + 1) * BLOCK - ORIGIN < distance) return (i + 1) * BLOCK - ORIGIN;
+      }
+      return 0;
+    }
+
+    function sectionAt(distance) {
+      const timeline = Math.max(0, distance + ORIGIN);
+      ensureBlock(Math.floor(timeline / BLOCK));
+      return blocks[Math.floor(timeline / BLOCK)].level - 1;
     }
 
     return {
-      seed: seed,
+      seed: 0xa814,
       entities: entities,
       decorations: decorations,
       banks: banks,
       ensure: ensure,
       checkpointBefore: checkpointBefore,
       sectionAt: sectionAt,
-      sectionLength: LENGTH,
+      sectionLength: SECTION,
     };
   }
 
@@ -1395,12 +1603,12 @@ window.RR = window.RR || {};
 
       this.refueling = false;
       for (const entity of this.world.entities) {
-        if (!entity.alive || Math.abs(entity.d - this.distance) > entity.height / 2 + 5) continue;
+        if (!entity.alive || Math.abs(entity.d - this.distance) > entity.height / 2 + 2) continue;
         if (entity.type === 'bridge') {
           this.die('ponte');
           return;
         }
-        if (Math.abs(entity.x - this.x) > entity.width / 2 + 3) continue;
+        if (Math.abs(entity.x - this.x) > entity.width / 2) continue;
         if (entity.type === 'fuel') this.refueling = true;
         else { this.die('colisão'); return; }
       }

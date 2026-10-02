@@ -64,14 +64,23 @@ test('o rio é determinístico, contínuo e continua gerando fases', () => {
   const types = new Set([...encountered.values()].map((e) => e.type));
   for (const type of ['tanker', 'helicopter', 'fuel', 'jet', 'bridge']) assert.ok(types.has(type), type);
   assert.ok(a.entities.some((e) => e.d > 14000), 'o percurso não termina após as primeiras fases');
+  const opening = a.banks(100);
+  assert.deepEqual([opening.left, opening.right, opening.islands.length, opening.land], [44, 116, 0, 'land'], 'o trecho inicial é o canal reto do cartucho');
+  assert.notEqual(RR.Config.PALETTE.landDark, '#0C4A1C', 'o verde escuro do cartucho não é uma tela preta');
+  let dark = 0;
+  let islands = 0;
   for (let d = 0; d <= 14000; d += 4) {
     const banks = a.banks(d);
-    assert.ok(banks.left >= 0 && banks.right <= 160 && banks.right - banks.left >= 24, `canal em ${d}`);
+    assert.ok(banks.left >= 16 && banks.right <= 144 && banks.right - banks.left >= 8, `canal em ${d}`);
+    if (banks.land === 'landDark') dark++;
     for (const island of banks.islands) {
-      assert.ok(island.left >= banks.left && island.right <= banks.right && island.right > island.left, `ilha em ${d}`);
-      assert.ok(island.left - banks.left >= 9 && banks.right - island.right >= 9, `passagem em torno da ilha em ${d}`);
+      islands++;
+      assert.ok(island.left > banks.left && island.right < banks.right && island.right > island.left, `ilha em ${d}`);
+      assert.ok(island.left - banks.left >= 4 && banks.right - island.right >= 4, `passagem em torno da ilha em ${d}`);
     }
   }
+  assert.ok(dark > 0, 'trechos pares usam o verde escuro, ainda assim verde');
+  assert.ok(islands > 0, 'há ilhas centrais');
   const stations = [...encountered.values()].filter((e) => e.type === 'fuel').sort((x, y) => x.d - y.d);
   assert.ok(stations.length >= 20, 'há postos ao longo do percurso');
   for (let i = 1; i < stations.length; i++) {
